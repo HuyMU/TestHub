@@ -2,6 +2,8 @@
 
 > [!NOTE]
 > This document serves as a rapid domain lookup and technical reference for AI agents working on the TestFlow Lite codebase. It is directly synchronized with [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0.
+>
+> For the live, up-to-date feature implementation matrix and current work status, see [CURRENT_STATE.md](./CURRENT_STATE.md).
 
 ---
 
@@ -93,6 +95,8 @@ erDiagram
 
 ## 5. API Endpoints Catalog
 
+> For detailed implementation status per module, see [CURRENT_STATE.md](./CURRENT_STATE.md).
+
 | Method | Endpoint | Description | Role Required | Status |
 |---|---|---|---|:---:|
 | POST | `/api/auth/login` | User login (JWT Access + Refresh token) | Public | ✅ Implemented (Slice 1) |
@@ -101,8 +105,8 @@ erDiagram
 | PUT | `/api/users/me/password` | Change current user password | Authenticated | ✅ Implemented (Slice 1) |
 | GET/POST | `/api/users` | List / Create Tester accounts | Leader | ✅ Implemented (Slice 1) |
 | PUT | `/api/users/{id}` | Update Tester details / Active status | Leader | ✅ Implemented (Slice 1) |
-| GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) | Stub |
-| POST | `/api/projects/{id}/members` | Assign Testers to Project | Leader | Stub |
+| GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) | ✅ Implemented (Slice 2) |
+| POST/DELETE | `/api/projects/{id}/members` | Assign / Remove Testers for Project | Leader | ✅ Implemented (Slice 2) |
 | GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Section/Subsection management | Leader / Tester (No delete for Tester) | Stub |
 | GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester | Stub |
 | POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester | Stub |
