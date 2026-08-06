@@ -31,6 +31,9 @@ export interface Project {
   name: string;
   description?: string;
   status: 'Active' | 'Archived';
+  createdBy?: User;
+  createdAt?: string;
+  memberCount?: number;
 }
 
 export interface Section {
@@ -39,6 +42,9 @@ export interface Section {
   parentSectionId?: number | null;
   name: string;
   sortOrder: number;
+  createdAt?: string;
+  directTestCaseCount?: number;
+  directSubsectionCount?: number;
   children?: Section[];
 }
 

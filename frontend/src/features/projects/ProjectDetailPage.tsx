@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/PageHeader';
 import axiosClient from '../../api/axiosClient';
 import { useAuthStore } from '../../store/authStore';
 import { Project, User } from '../../types';
+import { SectionTree } from '../sections/SectionTree';
 
 const { Text, Paragraph } = Typography;
 
@@ -155,9 +156,9 @@ export const ProjectDetailPage: React.FC = () => {
       key: 'sections',
       label: t('project.tabs.sections'),
       children: (
-        <Card style={{ marginTop: 16 }}>
-          <Text type="secondary">Sections & Test Cases module — Coming soon in Slice 3</Text>
-        </Card>
+        <div style={{ marginTop: 16 }}>
+          {id && <SectionTree projectId={Number(id)} />}
+        </div>
       ),
     },
     {
@@ -165,7 +166,7 @@ export const ProjectDetailPage: React.FC = () => {
       label: t('project.tabs.runs'),
       children: (
         <Card style={{ marginTop: 16 }}>
-          <Text type="secondary">Test Runs & Execution module — Coming soon</Text>
+          <Text type="secondary">Test Runs & Execution module — Coming soon in Slice 6</Text>
         </Card>
       ),
     },
@@ -174,7 +175,7 @@ export const ProjectDetailPage: React.FC = () => {
       label: t('project.tabs.milestones'),
       children: (
         <Card style={{ marginTop: 16 }}>
-          <Text type="secondary">Milestones module — Coming soon</Text>
+          <Text type="secondary">Milestones module — Coming soon in Slice 6</Text>
         </Card>
       ),
     },
@@ -237,7 +238,7 @@ export const ProjectDetailPage: React.FC = () => {
         </Card>
       )}
 
-      <Tabs defaultActiveKey="members" items={tabItems} />
+      <Tabs defaultActiveKey="sections" items={tabItems} />
 
       {/* Assign Members Modal */}
       <Modal

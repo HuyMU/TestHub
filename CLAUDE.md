@@ -23,8 +23,6 @@
 | Assign Testers to Projects | ✅ | ❌ |
 | CRUD Sections / Subsections | ✅ | ⚠️ Create/Edit only (No Delete) |
 | Create / Edit Test Cases | ✅ | ✅ (Cases created by self, in Draft status) |
-| Import Excel (Test Cases) | ✅ | ✅ |
-| Export Excel (Test Cases / Runs) | ✅ | ✅ |
 | Submit Test Case for Review | — | ✅ |
 | Approve/Reject Test Case (`Review` → `Ready` / `Draft`) | ✅ | ❌ |
 | Create Test Runs & Milestones | ✅ | ❌ |
@@ -85,7 +83,7 @@ TestHub/
 1. **Package-by-Feature**: Keep controllers, services, repositories, and DTOs within their feature package (e.g., `com.testhub.testflowlite.testcase.*`). Do NOT create a monolithic shared layer.
 2. **DTO Encapsulation**: Never expose JPA Entities directly across REST endpoints. Map Entities to dedicated DTOs for requests and responses.
 3. **Unified API Response**: Wrap all REST controller responses in `ApiResponse<T>` with standard status, code, message, and payload fields.
-4. **Centralized Exception Handling**: Throw business exceptions (e.g., `ResourceNotFoundException`, `UnauthorizedException`) and handle them globally using `@RestControllerAdvice` in `GlobalExceptionHandler`.
+4. **Centralized Exception Handling**: Throw business exceptions (e.g., `ResourceNotFoundException`, `UnauthorizedException`, `ConflictException`) and handle them globally using `@RestControllerAdvice` in `GlobalExceptionHandler`.
 5. **Database Auditing**: Extends `BaseEntity` (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) for entities requiring tracking.
 
 ### Frontend Conventions
@@ -118,6 +116,11 @@ TestHub/
 6. **No Real-Time Server Push**: Real-time updates (WebSockets / SSE) are explicitly excluded from Phase 1 MVP. Use client manual refresh.
 7. **Single Language MVP**: UI language is strictly **English** for Phase 1 MVP. Do NOT generate `vi.json` or add UI language switch toggles in MVP.
 8. **Automation API Authentication**: Automation ingestion endpoint (`POST /api/automation/results`) MUST authenticate using an **API Token**, NOT user JWT tokens.
+9. **Section Deletion Rule**: A Section CANNOT be deleted if it has child Subsections OR contains Test Cases. API MUST return `409 Conflict` with a clear message. Cascade delete is explicitly forbidden.
+10. **Section Edit Permission**: Any Tester assigned to the project MAY create/edit ANY Section in that project (not limited to sections they created). Section deletion remains Leader-only (already defined in Roles Matrix).
+11. **Test Run Snapshot Rule**: When a Test Case is added to a Test Run, its content fields (title, precondition, steps, expected_result, test_data) MUST be copied (snapshotted) into `test_run_cases` at that moment. Test execution and reporting MUST always read from the snapshot, NEVER live-join back to the current `test_cases` row.
+12. **API Token Security**: API Tokens (`api_tokens.token`) MUST be stored as a SHA-256 hash (`token_hash`), never plaintext. The plaintext token is shown to the user ONLY ONCE at creation time. Tokens MUST support revocation via `revoked_at`.
+13. **Excel Import Session Rule**: Between `/import/validate` and `/import/confirm`, parsed data MUST be persisted server-side in a staging table (`excel_import_sessions`) referenced by `importSessionId`, with an expiry (`expires_at`). Do NOT round-trip full parsed payloads through the client.
 
 ---
 

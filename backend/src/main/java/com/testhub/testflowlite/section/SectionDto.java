@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -15,5 +17,8 @@ public class SectionDto {
     private Long parentSectionId;
     private String name;
     private Integer sortOrder;
-    private List<SectionDto> children;
+    private LocalDateTime createdAt;
+    private int directTestCaseCount;
+    private int directSubsectionCount;
+    private List<SectionDto> children = new ArrayList<>();
 }
