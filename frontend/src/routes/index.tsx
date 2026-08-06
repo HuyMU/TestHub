@@ -5,6 +5,7 @@ import { PublicRoute } from './PublicRoute';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ProjectListPage } from '../features/projects/ProjectListPage';
+import { ProjectDetailPage } from '../features/projects/ProjectDetailPage';
 import { TestCaseListPage } from '../features/testcases/TestCaseListPage';
 import { ReviewQueuePage } from '../features/testcases/ReviewQueuePage';
 import { TestRunListPage } from '../features/testruns/TestRunListPage';
@@ -37,6 +38,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ProjectListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedRoute>
+            <ProjectDetailPage />
           </ProtectedRoute>
         }
       />

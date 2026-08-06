@@ -11,6 +11,7 @@ import com.testhub.testflowlite.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,9 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsernameOrEmail(), request.getPassword())
             );
+        } catch (DisabledException e) {
+            log.warn("Login attempt for disabled account: {}", request.getUsernameOrEmail());
+            throw new AccountDisabledException("Account is disabled");
         } catch (AuthenticationException e) {
             log.warn("Login failed for identifier: {}", request.getUsernameOrEmail());
             throw new InvalidCredentialsException("Invalid credentials");
@@ -39,10 +43,6 @@ public class AuthService {
 
         User user = userRepository.findByUsernameOrEmail(request.getUsernameOrEmail(), request.getUsernameOrEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid credentials"));
-
-        if (Boolean.FALSE.equals(user.getIsActive())) {
-            throw new AccountDisabledException("Account is disabled");
-        }
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());

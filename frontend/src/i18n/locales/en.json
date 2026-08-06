@@ -23,6 +23,34 @@
     "users": "Tester Accounts",
     "apiTokens": "API Tokens"
   },
+  "project": {
+    "title": "Projects",
+    "createProject": "Create Project",
+    "editProject": "Edit Project",
+    "name": "Project Name",
+    "description": "Description",
+    "status": "Status",
+    "active": "Active",
+    "archived": "Archived",
+    "createdBy": "Created By",
+    "members": "Members",
+    "memberCount": "Members Count",
+    "actions": "Actions",
+    "assignMembers": "Assign Testers to Project",
+    "selectTesters": "Select Testers",
+    "removeMember": "Remove Member",
+    "removeMemberConfirm": "Are you sure you want to remove this Tester from the project?",
+    "createdSuccess": "Project created successfully",
+    "updatedSuccess": "Project updated successfully",
+    "assignedSuccess": "Testers assigned successfully",
+    "removedSuccess": "Tester removed from project successfully",
+    "tabs": {
+      "sections": "Sections / Cases",
+      "runs": "Test Runs",
+      "milestones": "Milestones",
+      "members": "Project Members"
+    }
+  },
   "user": {
     "title": "Tester Accounts",
     "createTester": "Create Tester Account",

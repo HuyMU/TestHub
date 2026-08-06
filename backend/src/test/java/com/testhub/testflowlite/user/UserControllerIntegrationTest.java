@@ -55,6 +55,7 @@ class UserControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private User leader;
     private String leaderToken;
     private String testerToken;
 
@@ -62,14 +63,14 @@ class UserControllerIntegrationTest {
     void setUp() {
         userRepository.deleteAll();
 
-        User leader = new User();
+        leader = new User();
         leader.setUsername("leader");
         leader.setEmail("leader@testhub.com");
         leader.setPasswordHash(passwordEncoder.encode("Leader@123456"));
         leader.setFullName("System Leader");
         leader.setRole(Role.LEADER);
         leader.setIsActive(true);
-        userRepository.save(leader);
+        leader = userRepository.save(leader);
 
         User tester = new User();
         tester.setUsername("tester1");
@@ -107,6 +108,17 @@ class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testUpdateTester_LeaderTarget_NotFound() throws Exception {
+        UpdateUserRequest request = new UpdateUserRequest("leader@testhub.com", "Hacked Leader", false);
+
+        mockMvc.perform(put("/api/users/" + leader.getId())
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
     }
 
     @Test

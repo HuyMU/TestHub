@@ -67,6 +67,10 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
+        if (user.getRole() != Role.TESTER) {
+            throw new ResourceNotFoundException("User not found with id: " + id);
+        }
+
         if (!Objects.equals(user.getEmail(), request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Email '" + request.getEmail() + "' is already registered");
         }
