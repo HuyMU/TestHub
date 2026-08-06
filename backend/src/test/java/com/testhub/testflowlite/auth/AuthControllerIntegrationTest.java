@@ -1,0 +1,117 @@
+package com.testhub.testflowlite.auth;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.testhub.testflowlite.common.Role;
+import com.testhub.testflowlite.user.User;
+import com.testhub.testflowlite.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Testcontainers
+class AuthControllerIntegrationTest {
+
+    @Container
+    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+            .withDatabaseName("testhub_db_test")
+            .withUsername("testuser")
+            .withPassword("testpass");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.username", mysql::getUsername);
+        registry.add("spring.datasource.password", mysql::getPassword);
+        registry.add("spring.flyway.enabled", () -> "true");
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        userRepository.deleteAll();
+
+        User leader = new User();
+        leader.setUsername("leader");
+        leader.setEmail("leader@testhub.com");
+        leader.setPasswordHash(passwordEncoder.encode("Leader@123456"));
+        leader.setFullName("System Leader");
+        leader.setRole(Role.LEADER);
+        leader.setIsActive(true);
+        userRepository.save(leader);
+    }
+
+    @Test
+    void testLogin_Success() throws Exception {
+        LoginRequest request = new LoginRequest("leader", "Leader@123456");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists())
+                .andExpect(jsonPath("$.data.user.username").value("leader"))
+                .andExpect(jsonPath("$.data.user.role").value("LEADER"));
+    }
+
+    @Test
+    void testLogin_InvalidCredentials() throws Exception {
+        LoginRequest request = new LoginRequest("leader", "WrongPassword");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Invalid credentials"));
+    }
+
+    @Test
+    void testLogin_AccountDisabled() throws Exception {
+        User disabledUser = new User();
+        disabledUser.setUsername("disabled_tester");
+        disabledUser.setEmail("disabled@testhub.com");
+        disabledUser.setPasswordHash(passwordEncoder.encode("Pass@123456"));
+        disabledUser.setFullName("Disabled Tester");
+        disabledUser.setRole(Role.TESTER);
+        disabledUser.setIsActive(false);
+        userRepository.save(disabledUser);
+
+        LoginRequest request = new LoginRequest("disabled_tester", "Pass@123456");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Account is disabled"));
+    }
+}

@@ -1,9 +1,10 @@
--- TestFlow Lite - Seed Single Default Leader Account
--- This script runs automatically on MySQL container initialization or can be executed manually.
+-- TestFlow Lite - Reference Leader Seed Script
+-- NOTE: Automatic initialization is handled at application runtime by LeaderSeeder.java using Spring Boot.
+-- This file is kept for manual SQL reference or direct database testing only.
 
 USE testhub_db;
 
--- BCrypt hash below corresponds to password: Leader@123456
+-- BCrypt hash below corresponds to default password: Leader@123456
 INSERT INTO users (username, email, password_hash, full_name, role, is_active, created_at)
 VALUES (
     'leader',

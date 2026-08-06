@@ -1,7 +1,7 @@
 # AI_CONTEXT.md — Domain & Technical Context Reference
 
 > [!NOTE]
-> This document serves as a rapid domain lookup and technical reference for AI agents working on the TestFlow Lite codebase. It is directly synchronized with [DacTa-TestFlowLite-SRS.md](file:///c:/TestHub/DacTa-TestFlowLite-SRS.md) v3.0.
+> This document serves as a rapid domain lookup and technical reference for AI agents working on the TestFlow Lite codebase. It is directly synchronized with [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0.
 
 ---
 
@@ -93,29 +93,32 @@ erDiagram
 
 ## 5. API Endpoints Catalog
 
-| Method | Endpoint | Description | Role Required |
-|---|---|---|---|
-| POST | `/api/auth/login` | User login (JWT Access + Refresh token) | Public |
-| POST | `/api/auth/refresh` | Refresh access token | Public |
-| GET/POST | `/api/users` | List / Create / Edit Tester accounts | Leader |
-| GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) |
-| POST | `/api/projects/{id}/members` | Assign Testers to Project | Leader |
-| GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Section/Subsection management | Leader / Tester (No delete for Tester) |
-| GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester |
-| POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester |
-| POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader |
-| POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader |
-| GET | `/api/cases/review-queue` | List cases pending review | Leader |
-| POST | `/api/cases/import/validate` | Validate Excel template & return line errors | Leader / Tester |
-| POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester |
-| GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester |
-| GET/POST/PUT | `/api/milestones` | Manage Milestones | Leader |
-| GET/POST/PUT | `/api/runs` | Create & Manage Test Runs | Leader |
-| POST | `/api/runs/{id}/cases/{caseId}/execute` | Record manual test execution result | Leader / Tester |
-| POST | `/api/runs/{id}/cases/{caseId}/review` | Review execution result | Leader |
-| POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) |
-| GET | `/api/runs/{id}/report` | Generate Run report / Export Run to Excel | Leader / Tester |
-| GET | `/api/dashboard/{projectId}` | Fetch aggregated dashboard metrics | Leader / Tester |
+| Method | Endpoint | Description | Role Required | Status |
+|---|---|---|---|:---:|
+| POST | `/api/auth/login` | User login (JWT Access + Refresh token) | Public | ✅ Implemented (Slice 1) |
+| POST | `/api/auth/refresh` | Refresh access token | Public | ✅ Implemented (Slice 1) |
+| GET | `/api/users/me` | Fetch current authenticated user info | Authenticated | ✅ Implemented (Slice 1) |
+| PUT | `/api/users/me/password` | Change current user password | Authenticated | ✅ Implemented (Slice 1) |
+| GET/POST | `/api/users` | List / Create Tester accounts | Leader | ✅ Implemented (Slice 1) |
+| PUT | `/api/users/{id}` | Update Tester details / Active status | Leader | ✅ Implemented (Slice 1) |
+| GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) | Stub |
+| POST | `/api/projects/{id}/members` | Assign Testers to Project | Leader | Stub |
+| GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Section/Subsection management | Leader / Tester (No delete for Tester) | Stub |
+| GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester | Stub |
+| POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester | Stub |
+| POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader | Stub |
+| POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader | Stub |
+| GET | `/api/cases/review-queue` | List cases pending review | Leader | Stub |
+| POST | `/api/cases/import/validate` | Validate Excel template & return line errors | Leader / Tester | Stub |
+| POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester | Stub |
+| GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester | Stub |
+| GET/POST/PUT | `/api/milestones` | Manage Milestones | Leader | Stub |
+| GET/POST/PUT | `/api/runs` | Create & Manage Test Runs | Leader | Stub |
+| POST | `/api/runs/{id}/cases/{caseId}/execute` | Record manual test execution result | Leader / Tester | Stub |
+| POST | `/api/runs/{id}/cases/{caseId}/review` | Review execution result | Leader | Stub |
+| POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) | Stub |
+| GET | `/api/runs/{id}/report` | Generate Run report / Export Run to Excel | Leader / Tester | Stub |
+| GET | `/api/dashboard/{projectId}` | Fetch aggregated dashboard metrics | Leader / Tester | Stub |
 
 ---
 
@@ -149,4 +152,4 @@ erDiagram
 
 ---
 
-*This file is derived from [DacTa-TestFlowLite-SRS.md](file:///c:/TestHub/DacTa-TestFlowLite-SRS.md) v3.0. When SRS is updated, this file MUST be synchronized.*
+*This file is derived from [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0. When SRS is updated, this file MUST be synchronized.*

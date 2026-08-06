@@ -9,7 +9,7 @@
 ## 2. Single Source of Truth
 
 > [!IMPORTANT]
-> Before implementing any feature or modification, you **MUST** read [DacTa-TestFlowLite-SRS.md](file:///c:/TestHub/DacTa-TestFlowLite-SRS.md).
+> Before implementing any feature or modification, you **MUST** read [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md).
 > If this guidelines file (`CLAUDE.md`) or any other document conflicts with `DacTa-TestFlowLite-SRS.md`, **the SRS document strictly takes precedence**.
 
 ---
@@ -108,7 +108,7 @@ TestHub/
 > [!CAUTION]
 > AI agents and developers MUST NOT alter or add features outside these core SRS rules:
 
-1. **Single Leader Rule**: There is **ONLY 1 Leader account** in the system, seeded via `scripts/seed-leader.sql`. NO UI shall exist for creating additional Leader accounts.
+1. **Single Leader Rule**: There is **ONLY 1 Leader account** in the system, seeded via `LeaderSeeder.java`. NO UI shall exist for creating additional Leader accounts.
 2. **Test Case Status Lifecycle**: Strictly 3 states: `Draft` → `Review` → `Ready`. Do NOT add `Rejected` or `Deprecated` states.
 3. **Excel Import State**: All Test Cases imported from Excel **MUST start in `Draft` status**, regardless of whether imported by Leader or Tester.
 4. **Ready Case Modification Rule**:
@@ -125,7 +125,7 @@ TestHub/
 
 ### Backend Commands
 ```bash
-# Build project and run unit tests
+# Build project and run unit/integration tests
 cd backend && mvn clean test
 
 # Run Spring Boot backend locally
@@ -152,7 +152,7 @@ cd frontend && npm run build
 ## 9. Definition of Done (DoD) for Tasks
 
 A task is considered complete ONLY when:
-1. Backend compiles cleanly with `mvn clean test-compile` (or passes tests via `mvn test`).
+1. Backend compiles cleanly with `mvn clean test` (all unit and integration tests pass).
 2. Frontend compiles cleanly with `npm run build` with zero TypeScript errors.
 3. Code strictly complies with the **Non-Negotiable Business Rules** in Section 7.
 4. OpenAPI / Swagger annotations are added/updated for modified backend endpoints.

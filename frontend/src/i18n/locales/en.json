@@ -1,13 +1,17 @@
 {
   "app": {
     "title": "TestFlow Lite",
-    "logout": "Logout"
+    "logout": "Logout",
+    "myAccount": "My Account",
+    "changePassword": "Change Password"
   },
   "auth": {
     "loginTitle": "Sign in to TestFlow Lite",
     "username": "Username or Email",
     "password": "Password",
-    "loginButton": "Sign In"
+    "loginButton": "Sign In",
+    "invalidCredentials": "Invalid username/email or password",
+    "accountDisabled": "Account is disabled. Please contact System Leader."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -19,12 +23,34 @@
     "users": "Tester Accounts",
     "apiTokens": "API Tokens"
   },
+  "user": {
+    "title": "Tester Accounts",
+    "createTester": "Create Tester Account",
+    "username": "Username",
+    "email": "Email Address",
+    "fullName": "Full Name",
+    "password": "Initial Password",
+    "oldPassword": "Old Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Disabled",
+    "actions": "Actions",
+    "edit": "Edit",
+    "passwordChanged": "Password changed successfully",
+    "createdSuccess": "Tester account created successfully",
+    "updatedSuccess": "Tester account updated successfully"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
     "search": "Search",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "error": "Error",
+    "success": "Success",
+    "required": "This field is required"
   }
 }

@@ -1,5 +1,6 @@
 package com.testhub.testflowlite.auth;
 
+import com.testhub.testflowlite.user.UserDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class TokenResponse {
     private String accessToken;
     private String refreshToken;
-    private String username;
+    private UserDto user;
 }

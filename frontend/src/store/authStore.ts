@@ -3,22 +3,38 @@ import { User } from '../types';
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
 }
 
+const savedUser = localStorage.getItem('user_info');
+const initialUser: User | null = savedUser ? JSON.parse(savedUser) : null;
+const initialAccessToken = localStorage.getItem('access_token');
+const initialRefreshToken = localStorage.getItem('refresh_token');
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: localStorage.getItem('access_token'),
-  isAuthenticated: !!localStorage.getItem('access_token'),
-  setAuth: (user, token) => {
-    localStorage.setItem('access_token', token);
-    set({ user, token, isAuthenticated: true });
+  user: initialUser,
+  accessToken: initialAccessToken,
+  refreshToken: initialRefreshToken,
+  isAuthenticated: !!(initialAccessToken && initialUser),
+  setAuth: (user, accessToken, refreshToken) => {
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+    localStorage.setItem('user_info', JSON.stringify(user));
+    set({ user, accessToken, refreshToken, isAuthenticated: true });
+  },
+  updateUser: (user) => {
+    localStorage.setItem('user_info', JSON.stringify(user));
+    set({ user });
   },
   logout: () => {
     localStorage.removeItem('access_token');
-    set({ user: null, token: null, isAuthenticated: false });
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_info');
+    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
   },
 }));

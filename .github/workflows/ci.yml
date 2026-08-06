@@ -22,10 +22,10 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Compile Backend & Run Tests
+      - name: Compile Backend & Run Unit/Integration Tests
         run: |
           cd backend
-          mvn clean test-compile
+          mvn clean test
 
   frontend-build:
     name: Frontend (React & Vite)

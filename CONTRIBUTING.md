@@ -38,8 +38,8 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 Before submitting a Pull Request, ensure:
 
-1. [ ] **Single Source of Truth Check**: Changes comply with [DacTa-TestFlowLite-SRS.md](file:///c:/TestHub/DacTa-TestFlowLite-SRS.md).
-2. [ ] **Business Rules Verified**: Check all items in Section 7 of [CLAUDE.md](file:///c:/TestHub/CLAUDE.md) (e.g., single seed Leader, 3-state Test Case lifecycle, Excel import in `Draft` state).
+1. [ ] **Single Source of Truth Check**: Changes comply with [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md).
+2. [ ] **Business Rules Verified**: Check all items in Section 7 of [CLAUDE.md](./CLAUDE.md) (e.g., single seed Leader, 3-state Test Case lifecycle, Excel import in `Draft` state).
 3. [ ] **Backend Compilation**: `mvn clean test` completes successfully without errors in `backend/`.
 4. [ ] **Frontend Build**: `npm run build` completes successfully without TypeScript errors in `frontend/`.
 5. [ ] **API Specs**: Any new/updated REST APIs are documented with OpenAPI annotations.

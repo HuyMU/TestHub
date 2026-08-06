@@ -1,36 +1,77 @@
-import React from 'react';
-import { Form, Input, Button, Typography } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import axiosClient from '../../api/axiosClient';
 import { useAuthStore } from '../../store/authStore';
 
 const { Title } = Typography;
 
 export const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const onFinish = (values: any) => {
-    // TODO: Connect with /api/auth/login endpoint in business task
-    setAuth(
-      { id: 1, username: values.username, email: 'leader@testhub.com', fullName: 'System Leader', role: 'LEADER', isActive: true },
-      'mock-jwt-token'
-    );
+  const onFinish = async (values: any) => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const response: any = await axiosClient.post('/auth/login', {
+        usernameOrEmail: values.usernameOrEmail,
+        password: values.password,
+      });
+
+      if (response && response.success && response.data) {
+        const { accessToken, refreshToken, user } = response.data;
+        setAuth(user, accessToken, refreshToken);
+        navigate('/dashboard', { replace: true });
+      } else {
+        setErrorMessage(response.message || t('auth.invalidCredentials'));
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || t('auth.invalidCredentials');
+      setErrorMessage(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
       <Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-        TestFlow Lite Sign In
+        {t('auth.loginTitle')}
       </Title>
-      <Form name="login" onFinish={onFinish} layout="vertical">
-        <Form.Item name="username" rules={[{ required: true, message: 'Please input your Username or Email!' }]}>
-          <Input prefix={<UserOutlined />} placeholder="Username or Email" size="large" />
+
+      {errorMessage && (
+        <Alert
+          message={errorMessage}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          closable
+          onClose={() => setErrorMessage(null)}
+        />
+      )}
+
+      <Form name="login" onFinish={onFinish} layout="vertical" disabled={loading}>
+        <Form.Item
+          name="usernameOrEmail"
+          rules={[{ required: true, message: t('common.required') }]}
+        >
+          <Input prefix={<UserOutlined />} placeholder={t('auth.username')} size="large" />
         </Form.Item>
-        <Form.Item name="password" rules={[{ required: true, message: 'Please input your Password!' }]}>
-          <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
+        <Form.Item
+          name="password"
+          rules={[{ required: true, message: t('common.required') }]}
+        >
+          <Input.Password prefix={<LockOutlined />} placeholder={t('auth.password')} size="large" />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit" size="large" block>
-            Sign In
+          <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            {t('auth.loginButton')}
           </Button>
         </Form.Item>
       </Form>

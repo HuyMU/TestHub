@@ -14,7 +14,6 @@ services:
       - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./scripts/seed-leader.sql:/docker-entrypoint-initdb.d/seed-leader.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
@@ -36,6 +35,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-testhub_pass}
       JWT_SECRET: ${JWT_SECRET:-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+      SEED_LEADER_USERNAME: ${SEED_LEADER_USERNAME:-leader}
+      SEED_LEADER_EMAIL: ${SEED_LEADER_EMAIL:-leader@testhub.com}
+      SEED_LEADER_PASSWORD: ${SEED_LEADER_PASSWORD:-Leader@123456}
       UPLOAD_DIR: /uploads
     ports:
       - "${BACKEND_PORT:-8080}:8080"

@@ -27,9 +27,9 @@ TestFlow Lite is a lightweight, high-efficiency Test Case management and executi
    - Backend REST API & Swagger UI: `http://localhost:8080/swagger-ui.html`
    - Frontend SPA: `http://localhost:3000` (or `http://localhost:5173` via Vite dev)
 
-Default seed Leader account:
+Default seed Leader account (created on first application launch):
 - Username / Email: `leader` / `leader@testhub.com`
-- Default password set in `scripts/seed-leader.sql` / `.env`
+- Default password set in `.env` (`Leader@123456`)
 
 ---
 
@@ -40,20 +40,20 @@ TestHub/
 ├── docs/                   # Architecture, ERD, API specs, ADR, screen catalog
 ├── backend/                # Java 17, Spring Boot 3.x REST API (package-by-feature)
 ├── frontend/               # React (Vite + TypeScript + Ant Design) SPA
-├── scripts/                # Database seed & backup scripts
+├── scripts/                # Database backup script
 ├── .github/workflows/      # GitHub Actions CI workflow
 ├── docker-compose.yml      # Containerized deployment orchestration
 ├── CLAUDE.md               # AI Agent operating rules & non-negotiables
 └── AI_CONTEXT.md           # Domain reference, data models, state machines & API matrix
 ```
 
-For complete architectural details, see [docs/architecture/overview.md](file:///c:/TestHub/docs/architecture/overview.md).
+For complete architectural details, see [docs/architecture/overview.md](./docs/architecture/overview.md).
 
 ---
 
 ## 📚 Key Documentation
 
-- [DacTa-TestFlowLite-SRS.md](file:///c:/TestHub/DacTa-TestFlowLite-SRS.md) — Single Source of Truth (Software Requirements Specification v3.0)
-- [CLAUDE.md](file:///c:/TestHub/CLAUDE.md) — Guidelines & non-negotiable business rules for AI/human developers
-- [AI_CONTEXT.md](file:///c:/TestHub/AI_CONTEXT.md) — Rapid domain reference, ERD diagram, state machines, and API catalog
-- [CONTRIBUTING.md](file:///c:/TestHub/CONTRIBUTING.md) — Git workflow, branch conventions, and pre-PR checklist
+- [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) — Single Source of Truth (Software Requirements Specification v3.0)
+- [CLAUDE.md](./CLAUDE.md) — Guidelines & non-negotiable business rules for AI/human developers
+- [AI_CONTEXT.md](./AI_CONTEXT.md) — Rapid domain reference, ERD diagram, state machines, and API catalog
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — Git workflow, branch conventions, and pre-PR checklist
