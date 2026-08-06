@@ -1,0 +1,7 @@
+version: '3.8'
+
+# Example override for local development setup (e.g. mapping local code mounts)
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

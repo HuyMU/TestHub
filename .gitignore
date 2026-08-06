@@ -1,0 +1,36 @@
+# Monorepo / Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+
+# Java / Maven (Backend)
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+backend/*.jar
+backend/*.war
+
+# Node / React (Frontend)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/coverage/
+frontend/.cache/
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.ds_store
+Thumbs.db
+.antigravity/
+
+# Uploads directory
+uploads/*
+!uploads/.gitkeep

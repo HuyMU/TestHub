@@ -1,0 +1,30 @@
+{
+  "app": {
+    "title": "TestFlow Lite",
+    "logout": "Logout"
+  },
+  "auth": {
+    "loginTitle": "Sign in to TestFlow Lite",
+    "username": "Username or Email",
+    "password": "Password",
+    "loginButton": "Sign In"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "testCases": "Test Cases",
+    "reviewQueue": "Review Queue",
+    "testRuns": "Test Runs",
+    "milestones": "Milestones",
+    "users": "Tester Accounts",
+    "apiTokens": "API Tokens"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "confirm": "Confirm"
+  }
+}
