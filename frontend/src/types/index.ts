@@ -1,19 +1,19 @@
 export type Role = 'LEADER' | 'TESTER';
 
-export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type TestType =
-  | 'Functional'
-  | 'Regression'
-  | 'Smoke'
-  | 'Performance'
-  | 'Security'
-  | 'Usability'
-  | 'Other';
+  | 'FUNCTIONAL'
+  | 'REGRESSION'
+  | 'SMOKE'
+  | 'PERFORMANCE'
+  | 'SECURITY'
+  | 'USABILITY'
+  | 'OTHER';
 
-export type AutomationStatus = 'Manual' | 'Automated' | 'To Automate';
+export type AutomationStatus = 'MANUAL' | 'AUTOMATED' | 'TO_AUTOMATE';
 
-export type CaseStatus = 'Draft' | 'Review' | 'Ready';
+export type CaseStatus = 'DRAFT' | 'REVIEW' | 'READY';
 
 export type ResultStatus = 'Passed' | 'Failed' | 'Blocked' | 'Retest' | 'Untested';
 
@@ -51,7 +51,9 @@ export interface Section {
 export interface TestCase {
   id: number;
   code: string;
+  projectId?: number;
   sectionId: number;
+  sectionName?: string;
   title: string;
   precondition?: string;
   steps: string;
@@ -62,6 +64,13 @@ export interface TestCase {
   automationStatus: AutomationStatus;
   status: CaseStatus;
   reviewComment?: string;
+  createdById?: number;
+  createdByFullName?: string;
+  reviewedById?: number;
+  reviewedByFullName?: string;
+  reviewedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Milestone {

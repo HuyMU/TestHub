@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Card, Table, Button, Modal, Select, Tag, Popconfirm, message, Space, Typography } from 'antd';
+import { Tabs, Card, Table, Button, Modal, Select, Tag, Popconfirm, message, Space, Typography, Row, Col } from 'antd';
 import { ArrowLeftOutlined, UserAddOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../components/PageHeader';
@@ -8,6 +8,8 @@ import axiosClient from '../../api/axiosClient';
 import { useAuthStore } from '../../store/authStore';
 import { Project, User } from '../../types';
 import { SectionTree } from '../sections/SectionTree';
+import { TestCaseList } from '../testcases/TestCaseList';
+import { useSectionStore } from '../sections/useSectionStore';
 
 const { Text, Paragraph } = Typography;
 
@@ -17,6 +19,7 @@ export const ProjectDetailPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const isLeader = user?.role === 'LEADER';
+  const { sections, selectedSectionId } = useSectionStore();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<User[]>([]);
@@ -157,7 +160,20 @@ export const ProjectDetailPage: React.FC = () => {
       label: t('project.tabs.sections'),
       children: (
         <div style={{ marginTop: 16 }}>
-          {id && <SectionTree projectId={Number(id)} />}
+          <Row gutter={16}>
+            <Col xs={24} md={8}>
+              {id && <SectionTree projectId={Number(id)} />}
+            </Col>
+            <Col xs={24} md={16}>
+              {id && (
+                <TestCaseList
+                  projectId={Number(id)}
+                  sections={sections}
+                  selectedSectionId={selectedSectionId}
+                />
+              )}
+            </Col>
+          </Row>
         </div>
       ),
     },

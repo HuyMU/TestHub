@@ -121,6 +121,9 @@ TestHub/
 11. **Test Run Snapshot Rule**: When a Test Case is added to a Test Run, its content fields (title, precondition, steps, expected_result, test_data) MUST be copied (snapshotted) into `test_run_cases` at that moment. Test execution and reporting MUST always read from the snapshot, NEVER live-join back to the current `test_cases` row.
 12. **API Token Security**: API Tokens (`api_tokens.token`) MUST be stored as a SHA-256 hash (`token_hash`), never plaintext. The plaintext token is shown to the user ONLY ONCE at creation time. Tokens MUST support revocation via `revoked_at`.
 13. **Excel Import Session Rule**: Between `/import/validate` and `/import/confirm`, parsed data MUST be persisted server-side in a staging table (`excel_import_sessions`) referenced by `importSessionId`, with an expiry (`expires_at`). Do NOT round-trip full parsed payloads through the client.
+14. **Test Case Ownership Rule**: A Test Case is owned by the Tester who created it (`created_by`). Only the owner Tester OR the Leader may edit or delete it while it is editable (see Rule 15). Other Testers have READ-ONLY access (can view but not edit/delete).
+15. **Test Case Edit Lock Rule**: A Test Case can only be edited/deleted by its owner Tester while status is `Draft`. Once submitted to `Review`, the owner Tester CANNOT withdraw or edit it — it is locked until the Leader approves (`Ready`) or rejects (`Draft` + comment). The Leader MAY edit a Test Case at any status, at any time, without ownership restriction.
+16. **Test Case Code Generation**: `code` (e.g. `TC-0001`) is generated GLOBALLY (unique across the entire system, not per-project), derived deterministically from the entity's own auto-increment primary key after insert (format `TC-%04d`) to avoid race conditions — do NOT use a separate counter/sequence table.
 
 ---
 

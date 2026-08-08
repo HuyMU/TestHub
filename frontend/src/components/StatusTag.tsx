@@ -1,6 +1,5 @@
 import React from 'react';
 import { Tag } from 'antd';
-import { CaseStatus, ResultStatus, Priority } from '../types';
 
 interface StatusTagProps {
   type: 'caseStatus' | 'resultStatus' | 'priority';
@@ -9,49 +8,50 @@ interface StatusTagProps {
 
 export const StatusTag: React.FC<StatusTagProps> = ({ type, value }) => {
   let color = 'default';
+  const valUpper = (value || '').toUpperCase();
 
   if (type === 'caseStatus') {
-    switch (value as CaseStatus) {
-      case 'Draft':
-        color = 'orange';
+    switch (valUpper) {
+      case 'DRAFT':
+        color = 'processing';
         break;
-      case 'Review':
-        color = 'blue';
+      case 'REVIEW':
+        color = 'warning';
         break;
-      case 'Ready':
-        color = 'green';
+      case 'READY':
+        color = 'success';
         break;
     }
   } else if (type === 'resultStatus') {
-    switch (value as ResultStatus) {
-      case 'Passed':
+    switch (valUpper) {
+      case 'PASSED':
         color = 'success';
         break;
-      case 'Failed':
+      case 'FAILED':
         color = 'error';
         break;
-      case 'Blocked':
+      case 'BLOCKED':
         color = 'warning';
         break;
-      case 'Retest':
+      case 'RETEST':
         color = 'purple';
         break;
       default:
         color = 'default';
     }
   } else if (type === 'priority') {
-    switch (value as Priority) {
-      case 'Critical':
-        color = 'magenta';
-        break;
-      case 'High':
+    switch (valUpper) {
+      case 'CRITICAL':
         color = 'red';
         break;
-      case 'Medium':
-        color = 'volcano';
+      case 'HIGH':
+        color = 'orange';
         break;
-      case 'Low':
-        color = 'cyan';
+      case 'MEDIUM':
+        color = 'blue';
+        break;
+      case 'LOW':
+        color = 'default';
         break;
     }
   }

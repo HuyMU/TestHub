@@ -110,11 +110,11 @@ erDiagram
 | GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) | ✅ Implemented (Slice 2) |
 | POST/DELETE | `/api/projects/{id}/members` | Assign / Remove Testers for Project | Leader | ✅ Implemented (Slice 2) |
 | GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Section/Subsection management | Leader / Tester (No delete for Tester) | ✅ Implemented (Slice 3) |
-| GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester | Stub |
-| POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester | Stub |
-| POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader | Stub |
-| POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader | Stub |
-| GET | `/api/cases/review-queue` | List cases pending review | Leader | Stub |
+| GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester | ✅ Implemented (Slice 4) |
+| POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester (Owner) | ✅ Implemented (Slice 4) |
+| POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader | ✅ Implemented (Slice 4) |
+| POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader | ✅ Implemented (Slice 4) |
+| GET | `/api/cases/review-queue` | List cases pending review | Leader | ✅ Implemented (Slice 4) |
 | POST | `/api/cases/import/validate` | Validate Excel template & return line errors | Leader / Tester | Stub |
 | POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester | Stub |
 | GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester | Stub |
