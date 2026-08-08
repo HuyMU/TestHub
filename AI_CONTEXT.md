@@ -1,7 +1,7 @@
 # AI_CONTEXT.md — Domain & Technical Context Reference
 
 > [!NOTE]
-> This document serves as a rapid domain lookup and technical reference for AI agents working on the TestFlow Lite codebase. It is directly synchronized with [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0.
+> This document serves as a rapid domain lookup and technical reference for AI agents working on the TestFlow Lite codebase. It is directly synchronized with [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.1.
 >
 > For the live, up-to-date feature implementation matrix and current work status, see [CURRENT_STATE.md](./CURRENT_STATE.md).
 
@@ -119,8 +119,10 @@ erDiagram
 | POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester | ✅ Implemented (Slice 5) |
 | GET | `/api/cases/import/template` | Download formatted blank Excel template | Leader / Tester | ✅ Implemented (Slice 5) |
 | GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester | ✅ Implemented (Slice 5) |
-| GET/POST/PUT | `/api/milestones` | Manage Milestones | Leader | Stub |
-| GET/POST/PUT | `/api/runs` | Create & Manage Test Runs | Leader | Stub |
+| GET/POST/PUT/DELETE | `/api/projects/{id}/milestones` | Manage Milestones | Leader | ✅ Implemented (Slice 6) |
+| GET/POST | `/api/projects/{id}/runs` | Create & List Test Runs | Leader / Tester | ✅ Partial (Slice 6) |
+| GET | `/api/runs/{id}` | Fetch Test Run details with snapshotted cases | Leader / Tester | ✅ Partial (Slice 6) |
+| POST | `/api/runs/{id}/close` | Close Test Run | Leader | ✅ Partial (Slice 6) |
 | POST | `/api/runs/{id}/cases/{caseId}/execute` | Record manual test execution result | Leader / Tester | Stub |
 | POST | `/api/runs/{id}/cases/{caseId}/review` | Review execution result | Leader | Stub |
 | POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) | Stub |
@@ -159,4 +161,4 @@ erDiagram
 
 ---
 
-*This file is derived from [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0. When SRS is updated, this file MUST be synchronized.*
+*This file is derived from [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.1. When SRS is updated, this file MUST be synchronized.*

@@ -1,22 +1,19 @@
 package com.testhub.testflowlite.milestone;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MilestoneDto {
-    private Long id;
-    private Long projectId;
+public class CreateMilestoneRequest {
+
+    @NotBlank(message = "Milestone name is required")
     private String name;
+
     private LocalDate dueDate;
-    private MilestoneStatus status;
-    private Long createdById;
-    private String createdByName;
-    private LocalDateTime createdAt;
 }

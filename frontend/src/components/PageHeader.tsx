@@ -4,7 +4,7 @@ import { Typography, Space } from 'antd';
 const { Title } = Typography;
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   extra?: React.ReactNode;
 }
 

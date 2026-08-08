@@ -15,7 +15,7 @@ export type AutomationStatus = 'MANUAL' | 'AUTOMATED' | 'TO_AUTOMATE';
 
 export type CaseStatus = 'DRAFT' | 'REVIEW' | 'READY';
 
-export type ResultStatus = 'Passed' | 'Failed' | 'Blocked' | 'Retest' | 'Untested';
+export type ResultStatus = 'PASSED' | 'FAILED' | 'BLOCKED' | 'RETEST' | 'UNTESTED';
 
 export interface User {
   id: number;
@@ -78,14 +78,51 @@ export interface Milestone {
   projectId: number;
   name: string;
   dueDate?: string;
-  status: 'Open' | 'Closed';
+  status: 'OPEN' | 'CLOSED';
+  createdById?: number;
+  createdByName?: string;
+  createdAt?: string;
+}
+
+export interface TestRunCase {
+  id: number;
+  runId: number;
+  caseId: number;
+  code: string;
+  title: string;
+  precondition?: string;
+  steps: string;
+  expectedResult: string;
+  testData?: string;
+  assignedToId?: number;
+  assignedToName?: string;
+  resultStatus: ResultStatus;
+  executedBy?: string;
+  executedAt?: string;
+  comment?: string;
+  defectRef?: string;
+  isReviewed?: boolean;
+  reviewedById?: number;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  reviewComment?: string;
 }
 
 export interface TestRun {
   id: number;
   projectId: number;
   milestoneId?: number | null;
+  milestoneName?: string;
   name: string;
-  status: 'Open' | 'Closed';
-  createdAt: string;
+  status: 'OPEN' | 'CLOSED';
+  createdById?: number;
+  createdByName?: string;
+  createdAt?: string;
+  closedAt?: string;
+  totalCases?: number;
+  passedCases?: number;
+  failedCases?: number;
+  blockedCases?: number;
+  untestedCases?: number;
+  cases?: TestRunCase[];
 }

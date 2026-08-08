@@ -9,6 +9,7 @@ import { ProjectDetailPage } from '../features/projects/ProjectDetailPage';
 import { TestCaseListPage } from '../features/testcases/TestCaseListPage';
 import { ReviewQueuePage } from '../features/testcases/ReviewQueuePage';
 import { TestRunListPage } from '../features/testruns/TestRunListPage';
+import { TestRunDetailPage } from '../features/testruns/TestRunDetailPage';
 import { MilestoneListPage } from '../features/milestones/MilestoneListPage';
 import { UserListPage } from '../features/users/UserListPage';
 import { ApiTokenPage } from '../features/automation-tokens/ApiTokenPage';
@@ -70,6 +71,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <TestRunListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/runs/:runId"
+        element={
+          <ProtectedRoute>
+            <TestRunDetailPage />
           </ProtectedRoute>
         }
       />
