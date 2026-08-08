@@ -203,6 +203,62 @@ class ExcelControllerIntegrationTest {
     }
 
     @Test
+    void testConfirmImport_MultipleSubsectionsSameParent_CorrectSortOrder() throws Exception {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("User Management");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Subsection Path");
+            header.createCell(1).setCellValue("Title");
+            header.createCell(2).setCellValue("Precondition");
+            header.createCell(3).setCellValue("Steps");
+            header.createCell(4).setCellValue("Expected Result");
+
+            Row r1 = sheet.createRow(1);
+            r1.createCell(0).setCellValue("Profile > Settings");
+            r1.createCell(1).setCellValue("Case 1");
+            r1.createCell(2).setCellValue("Pre 1");
+            r1.createCell(3).setCellValue("1. Step 1");
+            r1.createCell(4).setCellValue("1. Res 1");
+
+            Row r2 = sheet.createRow(2);
+            r2.createCell(0).setCellValue("Profile > Notifications");
+            r2.createCell(1).setCellValue("Case 2");
+            r2.createCell(2).setCellValue("Pre 2");
+            r2.createCell(3).setCellValue("1. Step 1");
+            r2.createCell(4).setCellValue("1. Res 1");
+
+            wb.write(out);
+            byte[] excelBytes = out.toByteArray();
+
+            MockMultipartFile file = new MockMultipartFile("file", "sort_test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelBytes);
+
+            MvcResult validateResult = mockMvc.perform(multipart("/api/projects/" + project.getId() + "/cases/import/validate")
+                            .file(file)
+                            .header("Authorization", "Bearer " + testerToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String sessionId = objectMapper.readTree(validateResult.getResponse().getContentAsString()).get("data").get("importSessionId").asText();
+
+            mockMvc.perform(post("/api/projects/" + project.getId() + "/cases/import/confirm")
+                            .header("Authorization", "Bearer " + testerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ExcelImportConfirmRequest(sessionId))))
+                    .andExpect(status().isOk());
+
+            List<Section> sections = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+            Section profileSec = sections.stream().filter(s -> s.getName().equals("Profile")).findFirst().orElseThrow();
+            Section settingsSec = sections.stream().filter(s -> s.getName().equals("Settings")).findFirst().orElseThrow();
+            Section notifSec = sections.stream().filter(s -> s.getName().equals("Notifications")).findFirst().orElseThrow();
+
+            assertEquals(profileSec.getId(), settingsSec.getParentSection().getId());
+            assertEquals(profileSec.getId(), notifSec.getParentSection().getId());
+            assertEquals(0, settingsSec.getSortOrder());
+            assertEquals(1, notifSec.getSortOrder());
+        }
+    }
+
+    @Test
     void testConfirmImport_WithErrors_BadRequest400() throws Exception {
         // Invalid file with missing Title
         byte[] excelBytes = createSampleExcelFile("Auth", "", "", "Precondition", "1. Step", "1. Expected", "", "High", "Functional", "Manual");

@@ -147,15 +147,14 @@ public class ExcelService {
             }
 
             int sheetCaseCount = 0;
+            List<TestCase> sheetTestCases = new ArrayList<>();
 
             for (ExcelImportRowDto rowDto : sheetRows) {
-                Section targetSection = resolveTargetSection(project, rootSection, rowDto.getSubsectionPath(), existingSections);
-                if (targetSection.getId() == null) {
-                    createdSectionsCount++;
-                }
+                SectionResolveResult resolveResult = resolveTargetSection(project, rootSection, rowDto.getSubsectionPath(), existingSections);
+                createdSectionsCount += resolveResult.newlyCreatedCount();
 
                 TestCase tc = new TestCase();
-                tc.setSection(targetSection);
+                tc.setSection(resolveResult.section());
                 tc.setTitle(rowDto.getTitle());
                 tc.setPrecondition(rowDto.getPrecondition());
                 tc.setSteps(rowDto.getSteps());
@@ -167,12 +166,17 @@ public class ExcelService {
                 tc.setStatus(TestCaseStatus.DRAFT);
                 tc.setCreatedBy(currentUser);
 
-                TestCase saved = testCaseRepository.save(tc);
-                saved.setCode(String.format("TC-%04d", saved.getId()));
-                testCaseRepository.save(saved);
+                sheetTestCases.add(tc);
+            }
 
-                sheetCaseCount++;
-                createdCasesCount++;
+            if (!sheetTestCases.isEmpty()) {
+                List<TestCase> savedBatch = testCaseRepository.saveAll(sheetTestCases);
+                for (TestCase tc : savedBatch) {
+                    tc.setCode(String.format("TC-%04d", tc.getId()));
+                }
+                testCaseRepository.saveAll(savedBatch);
+                createdCasesCount += savedBatch.size();
+                sheetCaseCount = savedBatch.size();
             }
 
             casesPerSheet.put(sheetName, sheetCaseCount);
@@ -433,13 +437,16 @@ public class ExcelService {
                 .orElse(null);
     }
 
-    private Section resolveTargetSection(Project project, Section rootSection, String path, List<Section> allSections) {
+    private record SectionResolveResult(Section section, int newlyCreatedCount) {}
+
+    private SectionResolveResult resolveTargetSection(Project project, Section rootSection, String path, List<Section> allSections) {
         if (path == null || path.trim().isEmpty()) {
-            return rootSection;
+            return new SectionResolveResult(rootSection, 0);
         }
 
         String[] parts = path.split(">");
         Section currentParent = rootSection;
+        int newlyCreated = 0;
 
         for (String part : parts) {
             String segName = part.trim();
@@ -454,20 +461,26 @@ public class ExcelService {
             }
 
             if (found == null) {
+                final Long parentId = currentParent.getId();
+                int childCount = (int) allSections.stream()
+                        .filter(s -> s.getParentSection() != null && s.getParentSection().getId().equals(parentId))
+                        .count();
+
                 Section newSub = new Section();
                 newSub.setProject(project);
                 newSub.setParentSection(currentParent);
                 newSub.setName(segName);
-                newSub.setSortOrder(0);
+                newSub.setSortOrder(childCount);
                 newSub = sectionRepository.save(newSub);
                 allSections.add(newSub);
                 currentParent = newSub;
+                newlyCreated++;
             } else {
                 currentParent = found;
             }
         }
 
-        return currentParent;
+        return new SectionResolveResult(currentParent, newlyCreated);
     }
 
     private Priority parsePriority(String val) {

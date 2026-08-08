@@ -60,6 +60,7 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 3. **Open Decisions & Security Notes**:
    - *JWT Refresh Token Storage*: Currently stored in `localStorage` in frontend client (`authStore.ts`). XSS risk flagged; migration to `httpOnly` cookie deferred.
    - *React i18n Import in SectionTree*: `import { useTranslation } from 'react-i18next'` in `SectionTree.tsx` is intentionally retained for Phase 2 multi-language support (do NOT remove as dead code).
+   - *Excel Export/Import Round-trip Sheet Name Mismatch*: If a root Section name exceeds 31 characters or contains forbidden characters (`\/*?:[]`), `sanitizeSheetName()` during export truncates/alters the sheet name. Re-importing that file matches sections by name and may auto-create duplicate Sections instead of merging into the original full-named Section. Deferred fix.
 
 ---
 
@@ -123,3 +124,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 10. **Auto-Create Section Hierarchy on Import (2026-08-08)**: Missing root sections or subsection paths are automatically created at Import Confirm time without erroring.
 11. **Format-Agnostic Import Parsing (2026-08-08)**: Cell styling (font, color, bold) is ignored; only cell text content is parsed.
 12. **Steps/Expected Result Numbered Correspondence (2026-08-08)**: Flexible step markers (`1.`, `Step 1:`, `1)`) match Expected Result entries to Steps. Expected Result referencing non-existent steps triggers a row validation error.
+13. **Excel Import Section Count & Sort Order Fix (2026-08-08)**: `resolveTargetSection()` returns newly created section count to accurately report `createdSectionsCount` in `confirmImport()`. Auto-created subsections assign `sortOrder` dynamically based on existing children under parent. Batch saving used for test case insertion.
