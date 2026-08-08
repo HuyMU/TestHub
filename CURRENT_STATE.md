@@ -4,7 +4,7 @@
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
 - **Last Updated**: 2026-08-08
-- **Checked Commit**: `fc2001c` (Branch: `main`)
+- **Checked Commit**: `068408e` (Branch: `main`)
 
 ---
 
@@ -25,24 +25,21 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 | **Test Cases** | `Complete` | Test Case CRUD with global `TC-%04d` code auto-generation, section binding, multi-field filtering & pagination, clone/duplicate support, owner Tester edit/delete permissions in `Draft` status, read-only mode for non-owners, and automatic status reversion (`Ready` → `Draft`) upon Tester edit. |
 | **Review Workflow** | `Complete` | 3-state lifecycle (`Draft` → `Review` → `Ready`). Tester submit for review (`Draft` → `Review`) with edit lock, Leader approve (`Review` → `Ready` with `reviewedBy`/`reviewedAt`) and reject (`Review` → `Draft` + required comment), global FIFO Review Queue workbench for Leaders. |
 | **Excel Import/Export** | `Complete` | Apache POI 2-step Excel import engine (`/import/validate` returning line-by-line error reports & staging to `excel_import_sessions`; `/import/confirm` auto-creating missing section hierarchies & inserting `Draft` cases). Formatted `.xlsx` template generator (`/import/template`) and custom export engine (`/export`) with Times New Roman 13pt styling, sheet-per-root-section layout, dynamic row height, and dynamic column hiding for Test Data / Automation Status. |
-| **Milestones** | `Stub` | Skeleton DTOs & `MilestoneController` returning empty lists. Logic pending Slice 6. |
-| **Test Runs** | `Stub` | Skeleton DTOs & `TestRunController` returning empty lists. Snapshot schema added in V2 migration. Logic pending Slice 6. |
+| **Milestones** | `Complete` | Leader-only Milestone CRUD (`/api/projects/{projectId}/milestones`), duplicate name protection, deletion guard returning 409 Conflict if referenced by existing Test Runs, frontend `MilestoneListPage.tsx` workbench. |
+| **Test Runs** | `Partial` | Test Run creation selecting `READY` cases (with optional `includeNonReady` switch), optional milestone linking, Tester assignment per case, point-in-time content snapshotting to `test_run_cases` (Rule 11), close run action (`POST /api/runs/{id}/close`), frontend `TestRunListPage.tsx`, `CreateTestRunModal.tsx`, `TestRunDetailPage.tsx`. Manual execution recording & Leader review pending Slice 7. |
 | **Execution** | `Stub` | Skeleton endpoints for `/execute` and `/review`. Logic pending Slice 7. |
 | **Automation API** | `Stub` | Skeleton endpoint `POST /api/automation/results` with `X-API-TOKEN`. `token_hash` & `revoked_at` schema added in V2 migration. Logic pending Slice 8. |
 | **Attachments** | `Stub` | Skeleton endpoint for local filesystem upload to `/uploads`. Logic pending Slice 8. |
-| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`, `IMPORT_VALIDATE_EXCEL`, `IMPORT_CONFIRM_EXCEL`, `EXPORT_EXCEL`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
+| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`, `IMPORT_VALIDATE_EXCEL`, `IMPORT_CONFIRM_EXCEL`, `EXPORT_EXCEL`, `CREATE_MILESTONE`, `UPDATE_MILESTONE`, `DELETE_MILESTONE`, `CREATE_TESTRUN`, `ADD_CASES_TO_RUN`, `CLOSE_TESTRUN`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
 | **Dashboard** | `Stub` | Skeleton `DashboardController` returning mock 0 metrics. Logic pending Slice 9. |
-| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management, Project Management, Section Management (`SectionTree`), Test Case Management (`TestCaseList`), Review Workflow (`ReviewQueuePage`), Excel Import/Export (`ImportWizardModal` with 2-step preview/error reporting, `ExportSectionPickerModal` with checkable section tree, template download buttons) fully integrated. Placeholder pages exist for Runs, Milestones, API Tokens. |
+| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management, Project Management, Section Management (`SectionTree`), Test Case Management (`TestCaseList`), Review Workflow (`ReviewQueuePage`), Excel Import/Export (`ImportWizardModal`, `ExportSectionPickerModal`), Milestone Management (`MilestoneListPage`), Test Run Management (`TestRunListPage`, `CreateTestRunModal`, `TestRunDetailPage`) fully integrated. Placeholder pages exist for API Tokens and Execution. |
 
 ---
 
 ## 3. Incomplete & Stub Modules Detail
 
-- **Milestones & Test Runs (`milestone/`, `testrun/`)**:
-  - *Current Code*: Skeleton controllers and services returning empty lists.
-  - *Missing*: `Milestone` and `TestRun` JPA entities, case selection filters (only `Ready` cases), snapshot columns in `test_run_cases` ingestion logic.
 - **Execution & Automation Result Ingestion (`execution/`, `automation/`)**:
-  - *Current Code*: Skeleton controllers.
+  - *Current Code*: Skeleton controllers for manual test execution recording (`POST /api/runs/{id}/cases/{caseId}/execute`) and Leader result review (`POST /api/runs/{id}/cases/{caseId}/review`).
   - *Missing*: `TestRunCase` execution state recording, execution history logging, Leader result review, API Token SHA-256 hash verification (`token_hash`, `revoked_at`).
 - **Dashboard (`dashboard/`)**:
   - *Current Code*: Skeleton `DashboardController.java` returning static zero metrics.
@@ -53,7 +50,7 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 ## 4. Current Environment & Operational Notes
 
 1. **Integration Testing**:
-   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`, `ExcelControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
+   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`, `ExcelControllerIntegrationTest`, `MilestoneControllerIntegrationTest`, `TestRunControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
 2. **Database Migration & Seeding**:
    - Database migrations managed by Flyway (`V1__init_schema.sql`, `V2__add_architecture_decisions_schema.sql`).
    - Default Leader account is seeded automatically on application startup by `LeaderSeeder.java`.
@@ -95,9 +92,9 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 6: Milestones & Test Runs (Selection & Snapshot Execution Ingestion)**
-- *Scope*: Implement FR-21 through FR-25 in packages `milestone/` and `testrun/`, and frontend `features/milestones/` and `features/testruns/`.
-- *Details*: Milestone CRUD (name, due date, status `Open`/`Closed`). Test Run creation selecting `Ready` test cases, snapshotting content fields into `test_run_cases`.
+**Slice 7: Test Execution & Automation Result Ingestion**
+- *Scope*: Implement FR-24 through FR-26 in packages `execution/` and `automation/`, and frontend `features/execution/`.
+- *Details*: Recording manual test execution results (Passed/Failed/Blocked/Retest), execution history logging, Leader result review, and dedicated API Token authentication for automated result submission (`POST /api/automation/results`).
 
 ---
 
@@ -125,3 +122,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 11. **Format-Agnostic Import Parsing (2026-08-08)**: Cell styling (font, color, bold) is ignored; only cell text content is parsed.
 12. **Steps/Expected Result Numbered Correspondence (2026-08-08)**: Flexible step markers (`1.`, `Step 1:`, `1)`) match Expected Result entries to Steps. Expected Result referencing non-existent steps triggers a row validation error.
 13. **Excel Import Section Count & Sort Order Fix (2026-08-08)**: `resolveTargetSection()` returns newly created section count to accurately report `createdSectionsCount` in `confirmImport()`. Auto-created subsections assign `sortOrder` dynamically based on existing children under parent. Batch saving used for test case insertion.
+14. **Milestone & Test Run Snapshotting (2026-08-08)**: Milestones are managed per-project (Leader-only). Test Runs select `READY` test cases (optional `includeNonReady` switch), link milestones, assign Testers per case, snapshot content fields into `test_run_cases` upon creation/addition, and support closing run (`POST /api/runs/{id}/close`).
