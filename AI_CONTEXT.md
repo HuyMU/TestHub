@@ -115,9 +115,10 @@ erDiagram
 | POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader | ✅ Implemented (Slice 4) |
 | POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader | ✅ Implemented (Slice 4) |
 | GET | `/api/cases/review-queue` | List cases pending review | Leader | ✅ Implemented (Slice 4) |
-| POST | `/api/cases/import/validate` | Validate Excel template & return line errors | Leader / Tester | Stub |
-| POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester | Stub |
-| GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester | Stub |
+| POST | `/api/cases/import/validate` | Validate Excel template & return line errors | Leader / Tester | ✅ Implemented (Slice 5) |
+| POST | `/api/cases/import/confirm` | Confirm Excel import to DB (`Draft` state) | Leader / Tester | ✅ Implemented (Slice 5) |
+| GET | `/api/cases/import/template` | Download formatted blank Excel template | Leader / Tester | ✅ Implemented (Slice 5) |
+| GET | `/api/cases/export` | Export Test Cases to Excel | Leader / Tester | ✅ Implemented (Slice 5) |
 | GET/POST/PUT | `/api/milestones` | Manage Milestones | Leader | Stub |
 | GET/POST/PUT | `/api/runs` | Create & Manage Test Runs | Leader | Stub |
 | POST | `/api/runs/{id}/cases/{caseId}/execute` | Record manual test execution result | Leader / Tester | Stub |
@@ -130,19 +131,19 @@ erDiagram
 
 ## 6. Excel Import / Export Specifications
 
-### 6.1 Import Template Columns (`TestCases` Sheet)
+### 6.1 Import Template Columns (`TestCases` Sheet / Sheet-per-Root-Section)
 
-| Column | Mandatory | Type | Notes |
-|---|:---:|---|---|
-| Section Path | ✅ | Text | Hierarchical path with `/` (e.g. `Login/Negative`). Auto-creates sections |
-| Title | ✅ | Text | Test Case Title |
-| Pre-condition | ✅ | Text | Pre-requisite steps |
-| Steps | ✅ | Text | Multi-line execution steps |
-| Expected Result | ✅ | Text | Expected behavior |
-| Test Data | ❌ | Text | Input test data / accounts |
-| Priority | ✅ | Enum | `Low` / `Medium` / `High` / `Critical` |
-| Type | ✅ | Enum | `Functional` / `Regression` / `Smoke` / `Performance` / `Security` / `Usability` / `Other` |
-| Automation Status | ❌ | Enum | `Manual` / `Automated` / `To Automate` (Default: `Manual`) |
+| Column | Header Name | Mandatory | Type | Notes |
+|---|---|:---:|---|---|
+| A | Subsection Path | ❌ | Text | Hierarchical path with `>` (e.g. `Parent > Child`). Empty = root section |
+| B | Title | ✅ | Text | Test Case Title |
+| C | Precondition | ✅ | Text | Pre-requisite steps |
+| D | Steps | ✅ | Text | Multi-line execution steps with flexible step markers (`1.`, `Step 1:`) |
+| E | Expected Result | ✅ | Text | Multi-line expected behavior matching step numbers |
+| F | Test Data | ❌ | Text | Input test data / accounts |
+| G | Priority | ❌ | Enum | `Low` / `Medium` / `High` / `Critical` (Default: `Medium`) |
+| H | Type | ❌ | Enum | `Functional` / `Regression` / `Smoke` / `Performance` / `Security` / `Usability` / `Other` (Default: `Functional`) |
+| I | Automation Status | ❌ | Enum | `Manual` / `Automated` / `To Automate` (Default: `Manual`) |
 
 *Rule:* All imported cases enter in `Draft` status regardless of importer's role.
 

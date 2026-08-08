@@ -24,11 +24,15 @@ import {
   SendOutlined,
   EyeOutlined,
   ReloadOutlined,
+  UploadOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { TestCase, Section, Priority, TestType, CaseStatus, AutomationStatus } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { useTestCaseStore } from './useTestCaseStore';
 import { TestCaseFormModal } from './TestCaseFormModal';
+import { ImportWizardModal } from '../excel/ImportWizardModal';
+import { ExportSectionPickerModal } from '../excel/ExportSectionPickerModal';
 import * as testCaseApi from './testCaseApi';
 
 const { Text } = Typography;
@@ -60,6 +64,10 @@ export const TestCaseList: React.FC<TestCaseListProps> = ({ projectId, sections,
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [activeCase, setActiveCase] = useState<TestCase | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Excel Modals
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Sync selectedSectionId from section tree with store filters
   useEffect(() => {
@@ -300,9 +308,17 @@ export const TestCaseList: React.FC<TestCaseListProps> = ({ projectId, sections,
             </Space>
           </Col>
           <Col>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateOpen}>
-              Add Test Case
-            </Button>
+            <Space>
+              <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
+                Import Excel
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={() => setExportModalOpen(true)}>
+                Export Excel
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateOpen}>
+                Add Test Case
+              </Button>
+            </Space>
           </Col>
         </Row>
       }
@@ -405,6 +421,22 @@ export const TestCaseList: React.FC<TestCaseListProps> = ({ projectId, sections,
         loading={modalLoading}
         onCancel={() => setModalOpen(false)}
         onSubmit={handleModalSubmit}
+      />
+
+      {/* Import Wizard Modal */}
+      <ImportWizardModal
+        projectId={projectId}
+        open={importModalOpen}
+        onCancel={() => setImportModalOpen(false)}
+        onSuccess={() => fetchCases(projectId)}
+      />
+
+      {/* Export Section Picker Modal */}
+      <ExportSectionPickerModal
+        projectId={projectId}
+        open={exportModalOpen}
+        sections={sections}
+        onCancel={() => setExportModalOpen(false)}
       />
     </Card>
   );

@@ -80,7 +80,7 @@ TestHub/
 ## 6. Coding Conventions & Architecture Rules
 
 ### Backend Conventions
-1. **Package-by-Feature**: Keep controllers, services, repositories, and DTOs within their feature package (e.g., `com.testhub.testflowlite.testcase.*`). Do NOT create a monolithic shared layer.
+1. **Package-by-Feature**: Keep controllers, services, repositories, and DTOs within their feature package (e.g., `com.testhub.testflowlite.excel.*`). Do NOT create a monolithic shared layer.
 2. **DTO Encapsulation**: Never expose JPA Entities directly across REST endpoints. Map Entities to dedicated DTOs for requests and responses.
 3. **Unified API Response**: Wrap all REST controller responses in `ApiResponse<T>` with standard status, code, message, and payload fields.
 4. **Centralized Exception Handling**: Throw business exceptions (e.g., `ResourceNotFoundException`, `UnauthorizedException`, `ConflictException`) and handle them globally using `@RestControllerAdvice` in `GlobalExceptionHandler`.
@@ -95,7 +95,7 @@ TestHub/
 ### Git & Commit Conventions
 - Branch naming: `feature/<feature-name>`, `bugfix/<issue-name>`, `chore/<task-name>`
 - Commit messages (Conventional Commits):
-  - `feat(testcase): add submit for review endpoint`
+  - `feat(excel): implement excel import validate and confirm endpoints`
   - `fix(auth): fix token expiration handling`
   - `docs(api): update swagger annotations for execution endpoint`
 
@@ -124,6 +124,10 @@ TestHub/
 14. **Test Case Ownership Rule**: A Test Case is owned by the Tester who created it (`created_by`). Only the owner Tester OR the Leader may edit or delete it while it is editable (see Rule 15). Other Testers have READ-ONLY access (can view but not edit/delete).
 15. **Test Case Edit Lock Rule**: A Test Case can only be edited/deleted by its owner Tester while status is `Draft`. Once submitted to `Review`, the owner Tester CANNOT withdraw or edit it — it is locked until the Leader approves (`Ready`) or rejects (`Draft` + comment). The Leader MAY edit a Test Case at any status, at any time, without ownership restriction.
 16. **Test Case Code Generation**: `code` (e.g. `TC-0001`) is generated GLOBALLY (unique across the entire system, not per-project), derived deterministically from the entity's own auto-increment primary key after insert (format `TC-%04d`) to avoid race conditions — do NOT use a separate counter/sequence table.
+17. **Excel Sheet-per-Section Layout**: Each worksheet in the import/export .xlsx file represents ONE root (top-level) Section. Sheet name = Section name (truncated to Excel's 31-char limit; append numeric suffix on collision). A "Subsection Path" column (format `"Parent > Child > Grandchild"`) locates the case within that root Section's subtree; empty = case belongs directly to the root Section.
+18. **Auto-Create Section Hierarchy on Import**: If a sheet name or Subsection Path segment does not match an existing Section/Subsection in the project, the system automatically creates it (reusing Section creation logic) at Import Confirm time — never blocks import with an error for this reason.
+19. **Format-Agnostic Import Parsing**: Import parsing reads only cell TEXT content — font, size, color, bold/italic, alignment, or any other cell styling in the uploaded file is completely ignored and never affects recognition or validation.
+20. **Steps/Expected Result Numbered Correspondence**: Within a single cell, each line is expected to start with a flexible numeric marker (`1.`, `1)`, `1:`, `Step 1:`, case-insensitive, extra whitespace tolerated). The `Expected Result` cell only contains entries for step numbers that produce an observable result — a step number is simply absent from `Expected Result` if that step has no distinct result to check.
 
 ---
 

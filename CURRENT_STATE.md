@@ -24,23 +24,20 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 | **Sections** | `Complete` | Hierarchical Section & Subsection tree CRUD, drag-and-drop / batch reordering with UI client-side circular drop prevention, batch count queries resolving N+1 performance issue, circular reference checks, assigned Tester edit permissions, Leader-only delete guard returning 409 Conflict if section has child subsections or test cases. |
 | **Test Cases** | `Complete` | Test Case CRUD with global `TC-%04d` code auto-generation, section binding, multi-field filtering & pagination, clone/duplicate support, owner Tester edit/delete permissions in `Draft` status, read-only mode for non-owners, and automatic status reversion (`Ready` → `Draft`) upon Tester edit. |
 | **Review Workflow** | `Complete` | 3-state lifecycle (`Draft` → `Review` → `Ready`). Tester submit for review (`Draft` → `Review`) with edit lock, Leader approve (`Review` → `Ready` with `reviewedBy`/`reviewedAt`) and reject (`Review` → `Draft` + required comment), global FIFO Review Queue workbench for Leaders. |
-| **Excel Import/Export** | `Stub` | Skeleton endpoints for `/import/validate`, `/import/confirm`, and `/export`. Staging table schema `excel_import_sessions` added in V2 migration. Logic pending Slice 5. |
+| **Excel Import/Export** | `Complete` | Apache POI 2-step Excel import engine (`/import/validate` returning line-by-line error reports & staging to `excel_import_sessions`; `/import/confirm` auto-creating missing section hierarchies & inserting `Draft` cases). Formatted `.xlsx` template generator (`/import/template`) and custom export engine (`/export`) with Times New Roman 13pt styling, sheet-per-root-section layout, dynamic row height, and dynamic column hiding for Test Data / Automation Status. |
 | **Milestones** | `Stub` | Skeleton DTOs & `MilestoneController` returning empty lists. Logic pending Slice 6. |
 | **Test Runs** | `Stub` | Skeleton DTOs & `TestRunController` returning empty lists. Snapshot schema added in V2 migration. Logic pending Slice 6. |
 | **Execution** | `Stub` | Skeleton endpoints for `/execute` and `/review`. Logic pending Slice 7. |
 | **Automation API** | `Stub` | Skeleton endpoint `POST /api/automation/results` with `X-API-TOKEN`. `token_hash` & `revoked_at` schema added in V2 migration. Logic pending Slice 8. |
 | **Attachments** | `Stub` | Skeleton endpoint for local filesystem upload to `/uploads`. Logic pending Slice 8. |
-| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
+| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`, `IMPORT_VALIDATE_EXCEL`, `IMPORT_CONFIRM_EXCEL`, `EXPORT_EXCEL`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
 | **Dashboard** | `Stub` | Skeleton `DashboardController` returning mock 0 metrics. Logic pending Slice 9. |
-| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management (List Testers, Create/Edit Tester modal, Change Password modal), Project Management (List Projects, Create/Edit Project modal, Project Detail workbench with Members tab), Section Management (`SectionTree`), Test Case Management (`TestCaseList` table, `TestCaseFormModal` 10-field form with read-only/lock mode, Submit/Clone/Delete actions), Review Workflow (`ReviewQueuePage` Leader workbench with Approve/Reject comment modal) fully integrated. Placeholder pages exist for Runs, Milestones, API Tokens. |
+| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management, Project Management, Section Management (`SectionTree`), Test Case Management (`TestCaseList`), Review Workflow (`ReviewQueuePage`), Excel Import/Export (`ImportWizardModal` with 2-step preview/error reporting, `ExportSectionPickerModal` with checkable section tree, template download buttons) fully integrated. Placeholder pages exist for Runs, Milestones, API Tokens. |
 
 ---
 
 ## 3. Incomplete & Stub Modules Detail
 
-- **Excel Import/Export (`excel/`)**:
-  - *Current Code*: Skeleton `ExcelController.java`, `ExcelService.java`, `ExcelImportResultDto.java`.
-  - *Missing*: Apache POI parser, 2-step validation engine, line error reporting, staging table `excel_import_sessions` integration.
 - **Milestones & Test Runs (`milestone/`, `testrun/`)**:
   - *Current Code*: Skeleton controllers and services returning empty lists.
   - *Missing*: `Milestone` and `TestRun` JPA entities, case selection filters (only `Ready` cases), snapshot columns in `test_run_cases` ingestion logic.
@@ -56,7 +53,7 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 ## 4. Current Environment & Operational Notes
 
 1. **Integration Testing**:
-   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
+   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`, `ExcelControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
 2. **Database Migration & Seeding**:
    - Database migrations managed by Flyway (`V1__init_schema.sql`, `V2__add_architecture_decisions_schema.sql`).
    - Default Leader account is seeded automatically on application startup by `LeaderSeeder.java`.
@@ -97,9 +94,9 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 5: Excel Import & Export (2-Step Validation & Generation)**
-- *Scope*: Implement FR-17 through FR-20 in package `excel/` and frontend `features/excel/`.
-- *Details*: Apache POI Excel import validation engine (`POST /api/cases/import/validate`) parsing uploaded template, returning row-by-row error list and persisting valid rows to `excel_import_sessions` staging table; confirmation endpoint (`POST /api/cases/import/confirm`) committing staging payload to DB in `Draft` status. Excel export endpoints (`GET /api/cases/export`, `GET /api/runs/{id}/export`).
+**Slice 6: Milestones & Test Runs (Selection & Snapshot Execution Ingestion)**
+- *Scope*: Implement FR-21 through FR-25 in packages `milestone/` and `testrun/`, and frontend `features/milestones/` and `features/testruns/`.
+- *Details*: Milestone CRUD (name, due date, status `Open`/`Closed`). Test Run creation selecting `Ready` test cases, snapshotting content fields into `test_run_cases`.
 
 ---
 
@@ -122,3 +119,7 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 6. **Test Case Ownership Rule (2026-08-08)**: Test Cases are owned by their creator (`created_by`). Only owner Tester or Leader may edit/delete in editable state (`Draft`). Other Testers have read-only access.
 7. **Test Case Edit Lock & Reversion (2026-08-08)**: Test Case editing/deletion is locked for owner Tester once submitted to `Review`. Editing a `Ready` case as a Tester automatically reverts it to `Draft`. Editing as Leader preserves `Ready` status.
 8. **Test Case Global Code Generation (2026-08-08)**: `code` (e.g. `TC-0001`) is generated globally from `TC-%04d` using auto-increment primary key `id` after insert.
+9. **Excel Sheet-per-Section Layout (2026-08-08)**: Each sheet in import/export `.xlsx` represents one root Section. Column A `Subsection Path` (`"Parent > Child"`) places the case within the subtree.
+10. **Auto-Create Section Hierarchy on Import (2026-08-08)**: Missing root sections or subsection paths are automatically created at Import Confirm time without erroring.
+11. **Format-Agnostic Import Parsing (2026-08-08)**: Cell styling (font, color, bold) is ignored; only cell text content is parsed.
+12. **Steps/Expected Result Numbered Correspondence (2026-08-08)**: Flexible step markers (`1.`, `Step 1:`, `1)`) match Expected Result entries to Steps. Expected Result referencing non-existent steps triggers a row validation error.
