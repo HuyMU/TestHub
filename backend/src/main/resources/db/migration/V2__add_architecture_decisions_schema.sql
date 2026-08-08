@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS excel_import_sessions (
     CONSTRAINT fk_eis_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 2. Update api_tokens table with revoked_at column
+-- 2. Update api_tokens table with token_hash rename and revoked_at column
+ALTER TABLE api_tokens CHANGE COLUMN token token_hash VARCHAR(255) NOT NULL;
 ALTER TABLE api_tokens ADD COLUMN revoked_at DATETIME AFTER last_used_at;
 
 -- 3. Update test_run_cases table with snapshot columns

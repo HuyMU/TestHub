@@ -17,7 +17,7 @@ export const SectionTree: React.FC<SectionTreeProps> = ({ projectId }) => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const isLeader = user?.role === 'LEADER';
-  const { sections, selectedSectionId, loading, fetchSections, selectSection } = useSectionStore();
+  const { sections, selectedSectionId, loading, fetchSections, selectSection, setSections } = useSectionStore();
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -106,6 +106,161 @@ export const SectionTree: React.FC<SectionTreeProps> = ({ projectId }) => {
       } else {
         message.error(errorMsg);
       }
+    }
+  };
+
+  // Helper to check if targetId is the node itself or one of its descendants
+  const isDescendant = (node: Section, targetId: number): boolean => {
+    if (node.id === targetId) return true;
+    if (node.children && node.children.length > 0) {
+      return node.children.some((child) => isDescendant(child, targetId));
+    }
+    return false;
+  };
+
+  // Client-side drop validation to prevent circular references
+  const handleAllowDrop = ({ dropNode, dropPosition }: any): boolean => {
+    // dropPosition: -1 (before), 0 (inside), 1 (after)
+    return true;
+  };
+
+  // Drag and drop reordering handler
+  const handleDrop = async (info: any) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const dropPos = info.node.pos.split('-');
+    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
+
+    const dragSection: Section = info.dragNode.data;
+    const dropSection: Section = info.node.data;
+
+    // Prevent dropping onto self or descendant
+    if (isDescendant(dragSection, dropSection.id)) {
+      message.error('Cannot move a section into itself or one of its descendants');
+      return;
+    }
+
+    // Backup current state for rollback
+    const originalSections = sections;
+
+    // Determine new parent ID
+    let newParentSectionId: number | null = null;
+    if (!info.dropToGap) {
+      // Dropped directly onto dropNode -> becomes child of dropNode
+      newParentSectionId = dropSection.id;
+    } else {
+      // Dropped to gap before/after dropNode -> shares same parent as dropNode
+      newParentSectionId = dropSection.parentSectionId || null;
+    }
+
+    // Helper to remove section from tree
+    const removeNode = (list: Section[], id: number): { list: Section[]; removed: Section | null } => {
+      let removed: Section | null = null;
+      const newList = list.filter((item) => {
+        if (item.id === id) {
+          removed = item;
+          return false;
+        }
+        if (item.children && item.children.length > 0) {
+          const res = removeNode(item.children, id);
+          if (res.removed) removed = res.removed;
+          item.children = res.list;
+        }
+        return true;
+      });
+      return { list: newList, removed };
+    };
+
+    // Helper to insert section into tree at target parent
+    const insertNode = (
+      list: Section[],
+      nodeToInsert: Section,
+      parentId: number | null,
+      targetId: number,
+      pos: number
+    ): Section[] => {
+      if (parentId === null) {
+        const index = list.findIndex((item) => item.id === targetId);
+        const insertIdx = pos < 0 ? index : index + 1;
+        const result = [...list];
+        result.splice(insertIdx < 0 ? result.length : insertIdx, 0, nodeToInsert);
+        return result;
+      }
+      return list.map((item) => {
+        if (item.id === parentId) {
+          const children = item.children ? [...item.children] : [];
+          if (info.dropToGap) {
+            const index = children.findIndex((c) => c.id === targetId);
+            const insertIdx = pos < 0 ? index : index + 1;
+            children.splice(insertIdx < 0 ? children.length : insertIdx, 0, nodeToInsert);
+          } else {
+            children.push(nodeToInsert);
+          }
+          return { ...item, children };
+        }
+        if (item.children && item.children.length > 0) {
+          return { ...item, children: insertNode(item.children, nodeToInsert, parentId, targetId, pos) };
+        }
+        return item;
+      });
+    };
+
+    // Clone tree
+    const treeCopy = JSON.parse(JSON.stringify(sections));
+    const { list: cleanTree, removed: extractedNode } = removeNode(treeCopy, dragKey);
+
+    if (!extractedNode) return;
+    extractedNode.parentSectionId = newParentSectionId;
+
+    let updatedTree: Section[] = [];
+    if (!info.dropToGap) {
+      // Append to children of dropSection
+      const addToParent = (list: Section[]): Section[] => {
+        return list.map((item) => {
+          if (item.id === dropSection.id) {
+            const children = item.children ? [...item.children, extractedNode] : [extractedNode];
+            return { ...item, children };
+          }
+          if (item.children && item.children.length > 0) {
+            return { ...item, children: addToParent(item.children) };
+          }
+          return item;
+        });
+      };
+      updatedTree = addToParent(cleanTree);
+    } else {
+      updatedTree = insertNode(cleanTree, extractedNode, newParentSectionId, dropSection.id, dropPosition);
+    }
+
+    // Collect all reorder items for backend payload
+    const reorderItems: Array<{ sectionId: number; sortOrder: number; parentSectionId: number | null }> = [];
+    const collectReorderItems = (list: Section[], parentId: number | null) => {
+      list.forEach((item, index) => {
+        item.sortOrder = index;
+        item.parentSectionId = parentId;
+        reorderItems.push({
+          sectionId: item.id,
+          sortOrder: index,
+          parentSectionId: parentId,
+        });
+        if (item.children && item.children.length > 0) {
+          collectReorderItems(item.children, item.id);
+        }
+      });
+    };
+    collectReorderItems(updatedTree, null);
+
+    // Optimistic UI update
+    setSections(updatedTree);
+
+    // Backend sync
+    try {
+      await sectionApi.reorderSections(projectId, reorderItems);
+      message.success('Sections reordered');
+    } catch (err: any) {
+      // Rollback on error
+      setSections(originalSections);
+      message.error(err?.response?.data?.message || 'Failed to reorder sections');
     }
   };
 
@@ -219,6 +374,9 @@ export const SectionTree: React.FC<SectionTreeProps> = ({ projectId }) => {
         <Tree
           treeData={treeData}
           defaultExpandAll
+          draggable
+          allowDrop={handleAllowDrop}
+          onDrop={handleDrop}
           onSelect={(selectedKeys) => {
             if (selectedKeys.length > 0) {
               selectSection(Number(selectedKeys[0]));

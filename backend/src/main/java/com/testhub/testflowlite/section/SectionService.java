@@ -31,11 +31,27 @@ public class SectionService {
         verifyProjectAccess(projectId, currentUsername);
 
         List<Section> flat = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+
+        // Fetch batch counts to avoid N+1 queries
+        Map<Long, Integer> childCountMap = new HashMap<>();
+        for (Object[] row : sectionRepository.countChildrenGroupedByParent(projectId)) {
+            Long parentId = (Long) row[0];
+            Long count = (Long) row[1];
+            childCountMap.put(parentId, count.intValue());
+        }
+
+        Map<Long, Integer> caseCountMap = new HashMap<>();
+        for (Object[] row : sectionRepository.countTestCasesGroupedBySection(projectId)) {
+            Long secId = ((Number) row[0]).longValue();
+            Long count = ((Number) row[1]).longValue();
+            caseCountMap.put(secId, count.intValue());
+        }
+
         Map<Long, SectionDto> dtoMap = new HashMap<>();
         List<SectionDto> rootNodes = new ArrayList<>();
 
         for (Section section : flat) {
-            SectionDto dto = mapToDto(section);
+            SectionDto dto = mapToDto(section, childCountMap, caseCountMap);
             dtoMap.put(section.getId(), dto);
         }
 
@@ -203,6 +219,24 @@ public class SectionService {
         Long parentId = section.getParentSection() != null ? section.getParentSection().getId() : null;
         int subCount = sectionRepository.countByParentSectionId(section.getId());
         int caseCount = sectionRepository.countTestCasesBySectionId(section.getId());
+
+        return new SectionDto(
+                section.getId(),
+                section.getProject().getId(),
+                parentId,
+                section.getName(),
+                section.getSortOrder(),
+                section.getCreatedAt(),
+                caseCount,
+                subCount,
+                new ArrayList<>()
+        );
+    }
+
+    private SectionDto mapToDto(Section section, Map<Long, Integer> childCountMap, Map<Long, Integer> caseCountMap) {
+        Long parentId = section.getParentSection() != null ? section.getParentSection().getId() : null;
+        int subCount = childCountMap.getOrDefault(section.getId(), 0);
+        int caseCount = caseCountMap.getOrDefault(section.getId(), 0);
 
         return new SectionDto(
                 section.getId(),

@@ -16,4 +16,10 @@ public interface SectionRepository extends JpaRepository<Section, Long> {
 
     @Query(value = "SELECT COUNT(*) FROM test_cases WHERE section_id = :sectionId", nativeQuery = true)
     int countTestCasesBySectionId(@Param("sectionId") Long sectionId);
+
+    @Query("SELECT s.parentSection.id, COUNT(s) FROM Section s WHERE s.project.id = :projectId AND s.parentSection IS NOT NULL GROUP BY s.parentSection.id")
+    List<Object[]> countChildrenGroupedByParent(@Param("projectId") Long projectId);
+
+    @Query(value = "SELECT section_id, COUNT(*) FROM test_cases WHERE section_id IN (SELECT id FROM sections WHERE project_id = :projectId) GROUP BY section_id", nativeQuery = true)
+    List<Object[]> countTestCasesGroupedBySection(@Param("projectId") Long projectId);
 }

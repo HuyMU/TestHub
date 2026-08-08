@@ -8,6 +8,7 @@ interface SectionState {
   loading: boolean;
   fetchSections: (projectId: number) => Promise<void>;
   selectSection: (id: number | null) => void;
+  setSections: (sections: Section[]) => void;
 }
 
 export const useSectionStore = create<SectionState>((set) => ({
@@ -27,4 +28,5 @@ export const useSectionStore = create<SectionState>((set) => ({
   },
 
   selectSection: (id: number | null) => set({ selectedSectionId: id }),
+  setSections: (sections: Section[]) => set({ sections }),
 }));

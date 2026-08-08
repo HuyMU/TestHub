@@ -77,10 +77,12 @@ class SectionControllerIntegrationTest {
 
     private User leader;
     private User assignedTester;
+    private User assignedTesterB;
     private User unassignedTester;
     private Project project;
     private String leaderToken;
     private String assignedTesterToken;
+    private String assignedTesterBToken;
     private String unassignedTesterToken;
 
     @BeforeEach
@@ -104,10 +106,19 @@ class SectionControllerIntegrationTest {
         assignedTester.setUsername("assigned_tester");
         assignedTester.setEmail("tester1@testhub.com");
         assignedTester.setPasswordHash(passwordEncoder.encode("Tester@123456"));
-        assignedTester.setFullName("Assigned Tester");
+        assignedTester.setFullName("Assigned Tester A");
         assignedTester.setRole(Role.TESTER);
         assignedTester.setIsActive(true);
         assignedTester = userRepository.save(assignedTester);
+
+        assignedTesterB = new User();
+        assignedTesterB.setUsername("assigned_tester_b");
+        assignedTesterB.setEmail("tester1b@testhub.com");
+        assignedTesterB.setPasswordHash(passwordEncoder.encode("Tester@123456"));
+        assignedTesterB.setFullName("Assigned Tester B");
+        assignedTesterB.setRole(Role.TESTER);
+        assignedTesterB.setIsActive(true);
+        assignedTesterB = userRepository.save(assignedTesterB);
 
         unassignedTester = new User();
         unassignedTester.setUsername("unassigned_tester");
@@ -123,13 +134,19 @@ class SectionControllerIntegrationTest {
         project.setCreatedBy(leader);
         project = projectRepository.save(project);
 
-        ProjectMember pm = new ProjectMember();
-        pm.setProject(project);
-        pm.setUser(assignedTester);
-        projectMemberRepository.save(pm);
+        ProjectMember pmA = new ProjectMember();
+        pmA.setProject(project);
+        pmA.setUser(assignedTester);
+        projectMemberRepository.save(pmA);
+
+        ProjectMember pmB = new ProjectMember();
+        pmB.setProject(project);
+        pmB.setUser(assignedTesterB);
+        projectMemberRepository.save(pmB);
 
         leaderToken = jwtTokenProvider.generateAccessToken("leader", "LEADER");
         assignedTesterToken = jwtTokenProvider.generateAccessToken("assigned_tester", "TESTER");
+        assignedTesterBToken = jwtTokenProvider.generateAccessToken("assigned_tester_b", "TESTER");
         unassignedTesterToken = jwtTokenProvider.generateAccessToken("unassigned_tester", "TESTER");
     }
 
@@ -157,6 +174,35 @@ class SectionControllerIntegrationTest {
         mockMvc.perform(get("/api/projects/" + project.getId() + "/sections")
                         .header("Authorization", "Bearer " + unassignedTesterToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testUnassignedTester_CreateSection_Forbidden403() throws Exception {
+        CreateSectionRequest request = new CreateSectionRequest("Forbidden Section", null, 0);
+
+        mockMvc.perform(post("/api/projects/" + project.getId() + "/sections")
+                        .header("Authorization", "Bearer " + unassignedTesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testAssignedTesterEditSection_CreatedByAnotherUser_Success() throws Exception {
+        Section sec = new Section();
+        sec.setProject(project);
+        sec.setName("Created by Tester A");
+        sec = sectionRepository.save(sec);
+
+        UpdateSectionRequest updateRequest = new UpdateSectionRequest("Renamed by Tester B", null, 1);
+
+        mockMvc.perform(put("/api/sections/" + sec.getId())
+                        .header("Authorization", "Bearer " + assignedTesterBToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.name").value("Renamed by Tester B"));
     }
 
     @Test
