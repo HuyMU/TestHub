@@ -215,12 +215,11 @@ Team < 10 người (1 Leader + tối đa ~9 Tester), nhiều Project, ngôn ng�
 | `test_cases` | id, code (VD TC-0001), section_id, title, precondition, steps, expected_result, **test_data**, priority, **type** (bao gồm Usability), automation_status, **status** (Draft/Review/Ready), review_comment, created_by, reviewed_by, reviewed_at, created_at, updated_at |
 | `milestones` | id, project_id, name, due_date, status (Open/Closed), created_by, created_at |
 | `test_runs` | id, project_id, milestone_id (nullable), name, status, created_by, created_at, closed_at |
-| `test_run_cases` | id, run_id, case_id, title, precondition, steps, expected_result, test_data (snapshot), assigned_to, result_status, executed_by, executed_at, comment, defect_ref, is_reviewed, reviewed_by, reviewed_at, review_comment |
+| `test_run_cases` | id, run_id, case_id, assigned_to, result_status, executed_by, executed_at, comment, defect_ref, is_reviewed, reviewed_by, reviewed_at, review_comment |
 | `execution_history` | id, run_case_id, result_status, comment, executed_by, executed_at |
 | `attachments` | id, entity_type, entity_id, file_path, uploaded_by, uploaded_at |
-| `api_tokens` | id, created_by, token_hash, revoked_at, created_at, last_used_at |
+| `api_tokens` | id, created_by, token, created_at, last_used_at |
 | `audit_logs` | id, user_id, action, entity_type, entity_id, detail_json, created_at |
-| `excel_import_sessions` | id, import_session_id, project_id, created_by, parsed_payload_json, error_lines_json, expires_at, created_at |
 
 ### Quan hệ chính
 ```
@@ -268,28 +267,20 @@ Mỗi worksheet (sheet) trong file `.xlsx` đại diện cho **1 Section gốc (
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | POST | `/api/auth/login`, `/api/auth/refresh` | Đăng nhập / refresh token |
-| GET | `/api/users/me` | Lấy thông tin user hiện tại |
-| PUT | `/api/users/me/password` | Đổi mật khẩu cá nhân |
-| GET/POST/PUT | `/api/users` | Quản lý Tester (Leader) |
-| GET/POST/PUT | `/api/projects` | Quản lý Project |
-| POST/DELETE | `/api/projects/{id}/members` | Gán / Xóa Tester trong Project |
-| GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Quản lý Section/Subsection |
+| GET/POST | `/api/users` | Quản lý Tester (Leader) |
+| GET/POST | `/api/projects` | Quản lý Project |
+| POST | `/api/projects/{id}/members` | Gán Tester vào Project |
+| GET/POST | `/api/projects/{id}/sections` | Quản lý Section/Subsection |
 | GET/POST/PUT/DELETE | `/api/cases` | CRUD Test Case |
 | POST | `/api/cases/{id}/submit-review` | Tester submit để duyệt |
 | POST | `/api/cases/{id}/approve` | Leader duyệt → Ready |
 | POST | `/api/cases/{id}/reject` | Leader từ chối → về Draft (kèm comment) |
-| POST | `/api/cases/{id}/clone` | Clone Test Case |
 | GET | `/api/cases/review-queue` | Danh sách case đang Review |
-| POST | `/api/projects/{projectId}/cases/import/validate` | Step 1: Validate Excel template |
-| POST | `/api/projects/{projectId}/cases/import/confirm` | Step 2: Confirm import vào DB |
-| GET | `/api/projects/{projectId}/cases/import/template` | Download file mẫu Import (.xlsx) |
-| GET | `/api/projects/{projectId}/cases/export` | Export Excel |
-| GET/POST/PUT/DELETE | `/api/projects/{projectId}/milestones` | Quản lý Milestone (Leader) |
-| GET/POST | `/api/projects/{projectId}/runs` | Tạo & xem danh sách Test Run |
-| GET | `/api/runs/{id}` | Chi tiết Test Run + danh sách case (snapshot) |
-| POST | `/api/runs/{id}/cases` | Thêm case vào Run (open run) |
-| DELETE | `/api/runs/{id}/cases/{runCaseId}` | Gỡ case khỏi Run (open run) |
-| POST | `/api/runs/{id}/close` | Đóng Test Run |
+| POST | `/api/cases/import/validate`, `/api/cases/import/confirm` | Import Excel (Leader & Tester, hỗ trợ layout sheet-per-root-section) |
+| GET | `/api/cases/import/template` | Download file mẫu Import (.xlsx) |
+| GET | `/api/cases/export` | Export Excel |
+| GET/POST | `/api/milestones` | Quản lý Milestone |
+| POST | `/api/runs` | Tạo Test Run |
 | POST | `/api/runs/{id}/cases/{caseId}/execute` | Ghi nhận kết quả thực thi |
 | POST | `/api/runs/{id}/cases/{caseId}/review` | Leader review kết quả |
 | POST | `/api/automation/results` | Nhận kết quả automation (API Token) |
