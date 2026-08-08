@@ -3,8 +3,8 @@
 > [!IMPORTANT]
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
-- **Last Updated**: 2026-08-06
-- **Checked Commit**: `6fe1118` (Branch: `main`)
+- **Last Updated**: 2026-08-08
+- **Checked Commit**: `4a48c37` (Branch: `main`)
 
 ---
 
@@ -21,18 +21,18 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 | **Auth** | `Complete` | JWT Access + Refresh token flow, login via username/email, 401 automatic token refresh interceptor, `DisabledException` (403) handling. |
 | **Users** | `Complete` | Single Leader seed via `LeaderSeeder`, Leader CRUD & active status toggle for Testers, Leader update target protection (404), personal password change, user profile `/api/users/me`. |
 | **Projects** | `Complete` | Leader CRUD for Projects (Name, Description, Status [Active/Archived]), role-aware project visibility (Leader sees all, Tester sees assigned), member assignment/removal for active Testers, Leader member assignment rejection (400). |
-| **Sections** | `Complete` | Hierarchical Section & Subsection tree CRUD, drag-and-drop / batch reordering, circular reference checks, assigned Tester edit permissions, Leader-only delete guard returning 409 Conflict if section has child subsections or test cases. |
+| **Sections** | `Complete` | Hierarchical Section & Subsection tree CRUD, drag-and-drop / batch reordering with UI client-side circular drop prevention, batch count queries resolving N+1 performance issue, circular reference checks, assigned Tester edit permissions, Leader-only delete guard returning 409 Conflict if section has child subsections or test cases. |
 | **Test Cases** | `Stub` | Skeleton DTOs & `TestCaseController` returning empty case lists. Logic pending Slice 4. |
 | **Review Workflow** | `Stub` | Skeleton endpoints for `submit-review`, `approve`, `reject`, and `review-queue`. Logic pending Slice 4. |
 | **Excel Import/Export** | `Stub` | Skeleton endpoints for `/import/validate`, `/import/confirm`, and `/export`. Staging table schema `excel_import_sessions` added in V2 migration. Logic pending Slice 5. |
 | **Milestones** | `Stub` | Skeleton DTOs & `MilestoneController` returning empty lists. Logic pending Slice 6. |
 | **Test Runs** | `Stub` | Skeleton DTOs & `TestRunController` returning empty lists. Snapshot schema added in V2 migration. Logic pending Slice 6. |
 | **Execution** | `Stub` | Skeleton endpoints for `/execute` and `/review`. Logic pending Slice 7. |
-| **Automation API** | `Stub` | Skeleton endpoint `POST /api/automation/results` with `X-API-TOKEN`. `token_hash` & `revoked_at` schema added in V2 migration. Logic pending Slice 8. |
+| **Automation API** | `Stub` | Skeleton endpoint `POST /api/automation/results` with `X-API-TOKEN`. `token_hash` column rename & `revoked_at` schema added in V2 migration. Logic pending Slice 8. |
 | **Attachments** | `Stub` | Skeleton endpoint for local filesystem upload to `/uploads`. Logic pending Slice 8. |
 | **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
 | **Dashboard** | `Stub` | Skeleton `DashboardController` returning mock 0 metrics. Logic pending Slice 9. |
-| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management (List Testers, Create/Edit Tester modal, Change Password modal), Project Management (List Projects, Create/Edit Project modal, Project Detail workbench with Members tab), Section Management (Interactive `SectionTree` with tree view, create/edit modal, 409 error modal, Leader delete button) fully integrated. Placeholder pages exist for Test Cases, Runs, Milestones, API Tokens. |
+| **Frontend** | `Partial` | Layout, Navigation, Auth (Login), User Management (List Testers, Create/Edit Tester modal, Change Password modal), Project Management (List Projects, Create/Edit Project modal, Project Detail workbench with Members tab), Section Management (Interactive `SectionTree` with drag & drop reordering, tree view, create/edit modal, 409 error modal, Leader delete button) fully integrated. Placeholder pages exist for Test Cases, Runs, Milestones, API Tokens. |
 
 ---
 
@@ -63,8 +63,9 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 2. **Database Migration & Seeding**:
    - Database migrations managed by Flyway (`V1__init_schema.sql`, `V2__add_architecture_decisions_schema.sql`).
    - Default Leader account is seeded automatically on application startup by `LeaderSeeder.java`.
-3. **Open Security Notes**:
+3. **Open Decisions & Security Notes**:
    - *JWT Refresh Token Storage*: Currently stored in `localStorage` in frontend client (`authStore.ts`). XSS risk flagged; migration to `httpOnly` cookie deferred.
+   - *React i18n Import in SectionTree*: `import { useTranslation } from 'react-i18next'` in `SectionTree.tsx` is intentionally retained for Phase 2 multi-language support (do NOT remove as dead code).
 
 ---
 
