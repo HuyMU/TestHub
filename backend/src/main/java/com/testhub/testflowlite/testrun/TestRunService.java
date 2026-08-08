@@ -94,7 +94,7 @@ public class TestRunService {
             throw new ConflictException("Cannot add test cases to a closed Test Run");
         }
 
-        addCasesInternal(run, request.getCases(), true);
+        addCasesInternal(run, request.getCases(), Boolean.TRUE.equals(request.getIncludeNonReady()));
         auditLogService.logAction(run.getCreatedBy() != null ? run.getCreatedBy().getId() : null, "ADD_CASES_TO_RUN", "TEST_RUN", run.getId(), "Added cases to Test Run");
         return mapToDto(run, true);
     }

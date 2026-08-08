@@ -297,12 +297,62 @@ class TestRunControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.closedAt").exists());
 
         // Attempting to add cases to closed run -> 409 Conflict
-        AddCasesToRunRequest addReq = new AddCasesToRunRequest(List.of(new RunCaseItem(draftCase.getId(), tester.getId())));
+        AddCasesToRunRequest addReq = new AddCasesToRunRequest(List.of(new RunCaseItem(readyCase.getId(), tester.getId())));
         mockMvc.perform(post("/api/runs/" + runId + "/cases")
                         .header("Authorization", "Bearer " + leaderToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(addReq)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("closed Test Run")));
+    }
+
+    @Test
+    void testAddCasesToRun_DraftCaseWithoutFlag_Returns400() throws Exception {
+        CreateTestRunRequest req = new CreateTestRunRequest();
+        req.setName("Open Run");
+        req.setCases(List.of(new RunCaseItem(readyCase.getId(), tester.getId())));
+
+        MvcResult createResult = mockMvc.perform(post("/api/projects/" + project.getId() + "/runs")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long runId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("data").get("id").asLong();
+
+        // Adding draft case without includeNonReady flag -> 400 Bad Request
+        AddCasesToRunRequest addReq = new AddCasesToRunRequest(List.of(new RunCaseItem(draftCase.getId(), tester.getId())));
+        mockMvc.perform(post("/api/runs/" + runId + "/cases")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(addReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("not in READY status")));
+    }
+
+    @Test
+    void testAddCasesToRun_DraftCaseWithFlag_Success() throws Exception {
+        CreateTestRunRequest req = new CreateTestRunRequest();
+        req.setName("Open Run 2");
+        req.setCases(List.of(new RunCaseItem(readyCase.getId(), tester.getId())));
+
+        MvcResult createResult = mockMvc.perform(post("/api/projects/" + project.getId() + "/runs")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long runId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("data").get("id").asLong();
+
+        // Adding draft case with includeNonReady = true -> 200 OK
+        AddCasesToRunRequest addReq = new AddCasesToRunRequest(true, List.of(new RunCaseItem(draftCase.getId(), tester.getId())));
+        mockMvc.perform(post("/api/runs/" + runId + "/cases")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(addReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCases").value(2));
     }
 }

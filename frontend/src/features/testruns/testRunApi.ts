@@ -33,9 +33,13 @@ export const createTestRun = async (
 
 export const addCasesToRun = async (
   runId: number,
-  cases: RunCaseItemPayload[]
+  cases: RunCaseItemPayload[],
+  includeNonReady?: boolean
 ): Promise<TestRun> => {
-  const response = await axiosClient.post(`/runs/${runId}/cases`, { cases });
+  const response = await axiosClient.post(`/runs/${runId}/cases`, {
+    includeNonReady,
+    cases,
+  });
   return response.data.data;
 };
 

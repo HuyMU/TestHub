@@ -12,6 +12,13 @@ import java.util.List;
 @AllArgsConstructor
 public class AddCasesToRunRequest {
 
+    private Boolean includeNonReady = false;
+
     @NotEmpty(message = "Case list cannot be empty")
     private List<RunCaseItem> cases;
+
+    public AddCasesToRunRequest(List<RunCaseItem> cases) {
+        this.includeNonReady = false;
+        this.cases = cases;
+    }
 }
