@@ -1,5 +1,7 @@
 package com.testhub.testflowlite.execution;
 
+import com.testhub.testflowlite.attachment.AttachmentDto;
+import com.testhub.testflowlite.attachment.AttachmentService;
 import com.testhub.testflowlite.audit.AuditLogService;
 import com.testhub.testflowlite.common.BadRequestException;
 import com.testhub.testflowlite.common.ConflictException;
@@ -28,6 +30,7 @@ public class ExecutionService {
     private final TestCaseRepository testCaseRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final AttachmentService attachmentService;
 
     @Transactional
     public TestRunCaseDto recordExecution(Long runId, Long caseId, ExecutionDto dto, String currentUsername) {
@@ -47,7 +50,11 @@ public class ExecutionService {
             }
         }
 
-        ResultStatus statusToSet = dto.getResultStatus() != null ? dto.getResultStatus() : ResultStatus.UNTESTED;
+        if (dto.getResultStatus() == null) {
+            throw new BadRequestException("Result status is required");
+        }
+
+        ResultStatus statusToSet = dto.getResultStatus();
         runCase.setResultStatus(statusToSet);
         runCase.setComment(dto.getComment());
         runCase.setDefectRef(dto.getDefectRef());
@@ -63,12 +70,14 @@ public class ExecutionService {
         history.setComment(dto.getComment());
         history.setExecutedBy(user.getFullName() != null ? user.getFullName() : user.getUsername());
         history.setExecutedAt(LocalDateTime.now());
-        executionHistoryRepository.save(history);
+        history = executionHistoryRepository.save(history);
 
         auditLogService.logAction(user.getId(), "EXECUTE_TEST_CASE", "TEST_RUN_CASE", runCase.getId(),
                 "Executed test case in run with result: " + statusToSet);
 
-        return mapToDto(runCase);
+        TestRunCaseDto responseDto = mapToDto(runCase);
+        responseDto.setLatestExecutionHistoryId(history.getId());
+        return responseDto;
     }
 
     @Transactional
@@ -119,14 +128,25 @@ public class ExecutionService {
         List<ExecutionHistory> histories = executionHistoryRepository
                 .findByRunCaseRunIdAndRunCaseCaseIdOrderByExecutedAtDesc(runId, caseId);
 
-        return histories.stream().map(h -> new ExecutionHistoryDto(
-                h.getId(),
-                h.getRunCase().getId(),
-                h.getResultStatus(),
-                h.getComment(),
-                h.getExecutedBy(),
-                h.getExecutedAt()
-        )).collect(Collectors.toList());
+        return histories.stream().map(h -> {
+            List<AttachmentDto> attachments = attachmentService.listByEntity("EXECUTION_HISTORY", h.getId());
+            return new ExecutionHistoryDto(
+                    h.getId(),
+                    h.getRunCase().getId(),
+                    h.getResultStatus(),
+                    h.getComment(),
+                    h.getExecutedBy(),
+                    h.getExecutedAt(),
+                    attachments
+            );
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getExecutionAttachments(Long executionHistoryId, String currentUsername) {
+        executionHistoryRepository.findById(executionHistoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("ExecutionHistory not found: " + executionHistoryId));
+        return attachmentService.listByEntity("EXECUTION_HISTORY", executionHistoryId);
     }
 
     private TestRunCaseDto mapToDto(TestRunCase trc) {
@@ -155,7 +175,8 @@ public class ExecutionService {
                 trc.getReviewedBy() != null ? trc.getReviewedBy().getId() : null,
                 trc.getReviewedBy() != null ? trc.getReviewedBy().getFullName() : null,
                 trc.getReviewedAt(),
-                trc.getReviewComment()
+                trc.getReviewComment(),
+                null
         );
     }
 }

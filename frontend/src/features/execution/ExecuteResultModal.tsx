@@ -7,16 +7,13 @@ import {
   Upload,
   Button,
   message,
-  Space,
-  Tag,
-  Typography,
+  UploadFile,
 } from 'antd';
 import { UploadOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { TestRunCase } from '../../types';
 import * as executionApi from './executionApi';
 
 const { TextArea } = Input;
-const { Text } = Typography;
 
 interface ExecuteResultModalProps {
   runId: number;
@@ -35,46 +32,35 @@ export const ExecuteResultModal: React.FC<ExecuteResultModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [attachmentUrl, setAttachmentUrl] = useState<string | undefined>(undefined);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   if (!runCase) return null;
-
-  const handleCustomUpload = async (options: any) => {
-    const { file, onSuccess: onUploadSuccess, onError } = options;
-    if (file.size > 10 * 1024 * 1024) {
-      message.error('File size exceeds 10MB limit');
-      onError(new Error('File size exceeds 10MB limit'));
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const url = await executionApi.uploadAttachment('EXECUTION', runCase.caseId, file);
-      setAttachmentUrl(url);
-      message.success('Attachment uploaded');
-      onUploadSuccess(url);
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || 'Failed to upload attachment');
-      onError(err);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleFinish = async (values: any) => {
     setSubmitting(true);
     try {
-      await executionApi.recordExecution(runId, runCase.caseId, {
+      // 1. Submit execution result first to get executionHistoryId
+      const updatedCase: any = await executionApi.recordExecution(runId, runCase.caseId, {
         resultStatus: values.resultStatus,
         comment: values.comment,
         defectRef: values.defectRef,
-        attachmentUrl,
       });
+
+      const historyId = updatedCase?.latestExecutionHistoryId;
+
+      // 2. Upload selected attachments tied to the executionHistoryId
+      if (historyId && fileList.length > 0) {
+        for (const fileItem of fileList) {
+          const rawFile = fileItem.originFileObj;
+          if (rawFile) {
+            await executionApi.uploadAttachment('EXECUTION_HISTORY', historyId, rawFile);
+          }
+        }
+      }
 
       message.success('Execution result recorded successfully');
       form.resetFields();
-      setAttachmentUrl(undefined);
+      setFileList([]);
       onSuccess();
       onCancel();
     } catch (err: any) {
@@ -133,26 +119,29 @@ export const ExecuteResultModal: React.FC<ExecuteResultModalProps> = ({
           <Input placeholder="e.g. JIRA-1234 or GitHub #56" />
         </Form.Item>
 
-        <Form.Item label="Attachment (Image / PDF, max 10MB)">
+        <Form.Item label="Attachments (Images / PDF, max 10MB per file)">
           <Upload
-            customRequest={handleCustomUpload}
-            maxCount={1}
+            beforeUpload={(file) => {
+              if (file.size > 10 * 1024 * 1024) {
+                message.error(`${file.name} exceeds 10MB limit`);
+                return Upload.LIST_IGNORE;
+              }
+              const isAllowed = file.type.startsWith('image/') || file.type === 'application/pdf';
+              if (!isAllowed) {
+                message.error(`${file.name} is not an image or PDF`);
+                return Upload.LIST_IGNORE;
+              }
+              return false; // prevent automatic upload
+            }}
+            fileList={fileList}
+            onChange={({ fileList: newFileList }) => setFileList(newFileList)}
+            multiple
             accept="image/*,application/pdf"
-            onRemove={() => setAttachmentUrl(undefined)}
           >
-            <Button icon={<UploadOutlined />} loading={uploading}>
-              Select Attachment File
+            <Button icon={<UploadOutlined />}>
+              Select Attachment Files
             </Button>
           </Upload>
-
-          {attachmentUrl && (
-            <div style={{ marginTop: 8 }}>
-              <Text type="success">Attachment linked: </Text>
-              <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
-                {attachmentUrl}
-              </a>
-            </div>
-          )}
         </Form.Item>
       </Form>
     </Modal>

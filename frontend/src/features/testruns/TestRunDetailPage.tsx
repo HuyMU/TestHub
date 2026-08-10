@@ -28,6 +28,7 @@ import {
   SyncOutlined,
   HistoryOutlined,
   FileOutlined,
+  PaperClipOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '../../components/PageHeader';
 import { TestRunCase } from '../../types';
@@ -123,6 +124,21 @@ export const TestRunDetailPage: React.FC = () => {
       // Ignore background error
     } finally {
       setLoadingHistory((prev) => ({ ...prev, [caseId]: false }));
+    }
+  };
+
+  const handleDownloadAttachment = async (downloadUrl: string, fileName: string) => {
+    try {
+      const blobUrl = await executionApi.fetchAttachmentBlob(downloadUrl);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      message.error('Failed to download attachment');
     }
   };
 
@@ -376,6 +392,24 @@ export const TestRunDetailPage: React.FC = () => {
                               </Space>
                               {item.comment && (
                                 <p style={{ margin: '4px 0 0 0', color: '#595959' }}>{item.comment}</p>
+                              )}
+                              {item.attachments && item.attachments.length > 0 && (
+                                <div style={{ marginTop: 6 }}>
+                                  <Text type="secondary" style={{ fontSize: 12 }}><PaperClipOutlined /> Attachments ({item.attachments.length}): </Text>
+                                  <Space wrap size={[8, 4]}>
+                                    {item.attachments.map((att) => (
+                                      <Button
+                                        key={att.id}
+                                        type="link"
+                                        size="small"
+                                        icon={<FileOutlined />}
+                                        onClick={() => handleDownloadAttachment(att.downloadUrl, att.fileName)}
+                                      >
+                                        {att.fileName}
+                                      </Button>
+                                    ))}
+                                  </Space>
+                                </div>
                               )}
                             </div>
                           ),

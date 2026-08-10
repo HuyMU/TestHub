@@ -31,4 +31,5 @@ public class TestRunCaseDto {
     private String reviewedByName;
     private LocalDateTime reviewedAt;
     private String reviewComment;
+    private Long latestExecutionHistoryId;
 }

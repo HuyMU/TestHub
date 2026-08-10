@@ -1,6 +1,7 @@
 package com.testhub.testflowlite.execution;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.testhub.testflowlite.attachment.AttachmentDto;
 import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
 import com.testhub.testflowlite.project.ProjectMember;
@@ -26,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -33,6 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -94,11 +97,14 @@ class ExecutionControllerIntegrationTest {
     private User leader;
     private User assignedTester;
     private User unassignedTester;
+    private User externalTester;
     private String leaderToken;
     private String assignedTesterToken;
     private String unassignedTesterToken;
+    private String externalTesterToken;
 
     private Project project;
+    private Project externalProject;
     private TestCase testCase;
     private TestRun openRun;
     private TestRun closedRun;
@@ -141,9 +147,19 @@ class ExecutionControllerIntegrationTest {
         unassignedTester.setIsActive(true);
         unassignedTester = userRepository.save(unassignedTester);
 
+        externalTester = new User();
+        externalTester.setUsername("tester_external");
+        externalTester.setEmail("tester_external@example.com");
+        externalTester.setPasswordHash(passwordEncoder.encode("password"));
+        externalTester.setFullName("External Tester");
+        externalTester.setRole(Role.TESTER);
+        externalTester.setIsActive(true);
+        externalTester = userRepository.save(externalTester);
+
         leaderToken = jwtTokenProvider.generateAccessToken(leader.getUsername(), leader.getRole().name());
         assignedTesterToken = jwtTokenProvider.generateAccessToken(assignedTester.getUsername(), assignedTester.getRole().name());
         unassignedTesterToken = jwtTokenProvider.generateAccessToken(unassignedTester.getUsername(), unassignedTester.getRole().name());
+        externalTesterToken = jwtTokenProvider.generateAccessToken(externalTester.getUsername(), externalTester.getRole().name());
 
         project = new Project();
         project.setName("Execution Project");
@@ -159,6 +175,16 @@ class ExecutionControllerIntegrationTest {
         pm2.setProject(project);
         pm2.setUser(unassignedTester);
         projectMemberRepository.save(pm2);
+
+        externalProject = new Project();
+        externalProject.setName("External Project");
+        externalProject.setCreatedBy(leader);
+        externalProject = projectRepository.save(externalProject);
+
+        ProjectMember pmExt = new ProjectMember();
+        pmExt.setProject(externalProject);
+        pmExt.setUser(externalTester);
+        projectMemberRepository.save(pmExt);
 
         Section section = new Section();
         section.setName("Exec Section");
@@ -214,7 +240,7 @@ class ExecutionControllerIntegrationTest {
     }
 
     @Test
-    void testRecordExecution_AssignedTester_Success() throws Exception {
+    void testRecordExecution_AssignedTester_ReturnsLatestHistoryId() throws Exception {
         ExecutionDto dto = new ExecutionDto();
         dto.setResultStatus(ResultStatus.PASSED);
         dto.setComment("Passed cleanly");
@@ -227,7 +253,8 @@ class ExecutionControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.resultStatus").value("PASSED"))
                 .andExpect(jsonPath("$.data.executedBy").value("Assigned Tester"))
-                .andExpect(jsonPath("$.data.isReviewed").value(false));
+                .andExpect(jsonPath("$.data.isReviewed").value(false))
+                .andExpect(jsonPath("$.data.latestExecutionHistoryId", notNullValue()));
 
         TestRunCase updatedCase = testRunCaseRepository.findByRunIdAndCaseId(openRun.getId(), testCase.getId()).orElseThrow();
         assertEquals(ResultStatus.PASSED, updatedCase.getResultStatus());
@@ -236,6 +263,18 @@ class ExecutionControllerIntegrationTest {
         List<ExecutionHistory> history = executionHistoryRepository.findByRunCaseIdOrderByExecutedAtDesc(updatedCase.getId());
         assertEquals(1, history.size());
         assertEquals(ResultStatus.PASSED, history.get(0).getResultStatus());
+    }
+
+    @Test
+    void testRecordExecution_MissingResultStatus_Returns400() throws Exception {
+        ExecutionDto dto = new ExecutionDto();
+        dto.setComment("Missing status");
+
+        mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
+                        .header("Authorization", "Bearer " + assignedTesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -264,7 +303,6 @@ class ExecutionControllerIntegrationTest {
 
     @Test
     void testReviewResult_LeaderApprove_Success() throws Exception {
-        // Execute first
         ExecutionDto dto = new ExecutionDto();
         dto.setResultStatus(ResultStatus.PASSED);
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
@@ -273,7 +311,6 @@ class ExecutionControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
 
-        // Leader reviews: reviewed = true
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/review")
                         .header("Authorization", "Bearer " + leaderToken)
                         .param("reviewed", "true")
@@ -285,7 +322,6 @@ class ExecutionControllerIntegrationTest {
 
     @Test
     void testReviewResult_RequestRetestWithoutComment_Returns400() throws Exception {
-        // Execute first
         ExecutionDto dto = new ExecutionDto();
         dto.setResultStatus(ResultStatus.FAILED);
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
@@ -294,7 +330,6 @@ class ExecutionControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
 
-        // Leader requests retest without comment -> 400 Bad Request
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/review")
                         .header("Authorization", "Bearer " + leaderToken)
                         .param("reviewed", "false"))
@@ -304,7 +339,6 @@ class ExecutionControllerIntegrationTest {
 
     @Test
     void testReviewResult_RequestRetestValid_Success() throws Exception {
-        // Execute first
         ExecutionDto dto = new ExecutionDto();
         dto.setResultStatus(ResultStatus.FAILED);
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
@@ -313,7 +347,6 @@ class ExecutionControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
 
-        // Leader requests retest with comment -> status = RETEST, isReviewed = false
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/review")
                         .header("Authorization", "Bearer " + leaderToken)
                         .param("reviewed", "false")
@@ -333,7 +366,6 @@ class ExecutionControllerIntegrationTest {
 
     @Test
     void testReviewResult_UntestedCase_Returns400() throws Exception {
-        // Attempting to review an Untested case -> 400 Bad Request
         mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/review")
                         .header("Authorization", "Bearer " + leaderToken)
                         .param("reviewed", "true"))
@@ -342,29 +374,71 @@ class ExecutionControllerIntegrationTest {
     }
 
     @Test
-    void testAttachmentUpload_ValidationAndSuccess() throws Exception {
+    void testAttachmentUpload_And_SecurityFileAccess_Scenarios() throws Exception {
+        // 1. Execute to get executionHistoryId
+        ExecutionDto dto = new ExecutionDto();
+        dto.setResultStatus(ResultStatus.PASSED);
+        MvcResult execResult = mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
+                        .header("Authorization", "Bearer " + assignedTesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String execResponseBody = execResult.getResponse().getContentAsString();
+        Long historyId = objectMapper.readTree(execResponseBody).get("data").get("latestExecutionHistoryId").asLong();
+
         // Invalid file format (text/plain) -> 400 Bad Request
         MockMultipartFile textFile = new MockMultipartFile("file", "test.txt", "text/plain", "hello".getBytes());
         mockMvc.perform(multipart("/api/attachments/upload")
                         .file(textFile)
-                        .param("entityType", "EXECUTION")
-                        .param("entityId", "100")
+                        .param("entityType", "EXECUTION_HISTORY")
+                        .param("entityId", String.valueOf(historyId))
                         .header("Authorization", "Bearer " + assignedTesterToken))
                 .andExpect(status().isBadRequest());
 
-        // Valid image -> 200 OK
+        // Valid image upload -> 200 OK, returns AttachmentDto with downloadUrl
         MockMultipartFile imageFile = new MockMultipartFile("file", "screenshot.png", "image/png", new byte[]{1, 2, 3});
-        mockMvc.perform(multipart("/api/attachments/upload")
+        MvcResult uploadResult = mockMvc.perform(multipart("/api/attachments/upload")
                         .file(imageFile)
-                        .param("entityType", "EXECUTION")
-                        .param("entityId", "100")
+                        .param("entityType", "EXECUTION_HISTORY")
+                        .param("entityId", String.valueOf(historyId))
                         .header("Authorization", "Bearer " + assignedTesterToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(org.hamcrest.Matchers.startsWith("/uploads/EXECUTION/100/")));
+                .andExpect(jsonPath("$.data.downloadUrl", notNullValue()))
+                .andReturn();
+
+        Long attachmentId = objectMapper.readTree(uploadResult.getResponse().getContentAsString()).get("data").get("id").asLong();
+
+        // 2. GET /api/executions/{historyId}/attachments -> returns attachment list
+        mockMvc.perform(get("/api/executions/" + historyId + "/attachments")
+                        .header("Authorization", "Bearer " + assignedTesterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(attachmentId));
+
+        // 3. GET /api/attachments/{id}/file as Project Member -> 200 OK
+        mockMvc.perform(get("/api/attachments/" + attachmentId + "/file")
+                        .header("Authorization", "Bearer " + assignedTesterToken))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"));
+
+        // 4. GET /api/attachments/{id}/file as External Non-Member -> 403 Forbidden
+        mockMvc.perform(get("/api/attachments/" + attachmentId + "/file")
+                        .header("Authorization", "Bearer " + externalTesterToken))
+                .andExpect(status().isForbidden());
+
+        // 5. GET /api/attachments/{id}/file without Token -> 401 Unauthorized
+        mockMvc.perform(get("/api/attachments/" + attachmentId + "/file"))
+                .andExpect(status().isUnauthorized());
+
+        // 6. Direct public request to /uploads/{path} -> blocked (401 / 403)
+        mockMvc.perform(get("/uploads/EXECUTION_HISTORY/" + historyId + "/screenshot.png"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void testRecordExecution_MultipleAttempts_AppendsHistory() throws Exception {
+    void testRecordExecution_MultipleAttempts_AppendsHistoryWithAttachments() throws Exception {
         ExecutionDto dto1 = new ExecutionDto();
         dto1.setResultStatus(ResultStatus.FAILED);
         dto1.setComment("Attempt 1 failed");

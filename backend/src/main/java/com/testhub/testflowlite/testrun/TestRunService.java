@@ -274,7 +274,8 @@ public class TestRunService {
                 c.getReviewedBy() != null ? c.getReviewedBy().getId() : null,
                 c.getReviewedBy() != null ? c.getReviewedBy().getFullName() : null,
                 c.getReviewedAt(),
-                c.getReviewComment()
+                c.getReviewComment(),
+                null
         );
     }
 }

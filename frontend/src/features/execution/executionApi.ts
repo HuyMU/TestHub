@@ -5,7 +5,18 @@ export interface ExecutionPayload {
   resultStatus: 'PASSED' | 'FAILED' | 'BLOCKED' | 'RETEST' | 'UNTESTED';
   comment?: string;
   defectRef?: string;
-  attachmentUrl?: string;
+}
+
+export interface AttachmentDto {
+  id: number;
+  entityType: string;
+  entityId: number;
+  filePath: string;
+  fileName: string;
+  downloadUrl: string;
+  uploadedById?: number;
+  uploadedByName?: string;
+  uploadedAt: string;
 }
 
 export interface ExecutionHistoryItem {
@@ -15,6 +26,7 @@ export interface ExecutionHistoryItem {
   comment?: string;
   executedBy?: string;
   executedAt: string;
+  attachments?: AttachmentDto[];
 }
 
 export const recordExecution = async (
@@ -42,7 +54,7 @@ export const uploadAttachment = async (
   entityType: string,
   entityId: number,
   file: File
-): Promise<string> => {
+): Promise<AttachmentDto> => {
   const formData = new FormData();
   formData.append('entityType', entityType);
   formData.append('entityId', String(entityId));
@@ -62,4 +74,18 @@ export const getExecutionHistory = async (
 ): Promise<ExecutionHistoryItem[]> => {
   const response = await axiosClient.get(`/runs/${runId}/cases/${caseId}/history`);
   return response.data.data;
+};
+
+export const getExecutionAttachments = async (
+  executionHistoryId: number
+): Promise<AttachmentDto[]> => {
+  const response = await axiosClient.get(`/executions/${executionHistoryId}/attachments`);
+  return response.data.data;
+};
+
+export const fetchAttachmentBlob = async (downloadUrl: string): Promise<string> => {
+  const response = await axiosClient.get(downloadUrl, {
+    responseType: 'blob',
+  });
+  return URL.createObjectURL(response.data);
 };
