@@ -72,4 +72,7 @@ public class TestCase extends BaseEntity {
 
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
 }

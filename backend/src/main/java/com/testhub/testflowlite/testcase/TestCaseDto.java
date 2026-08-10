@@ -30,6 +30,7 @@ public class TestCaseDto {
     private Long reviewedById;
     private String reviewedByFullName;
     private LocalDateTime reviewedAt;
+    private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

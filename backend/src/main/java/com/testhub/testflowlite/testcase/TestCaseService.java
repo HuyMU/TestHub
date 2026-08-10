@@ -189,8 +189,8 @@ public class TestCaseService {
         Long projectId = testCase.getSection().getProject().getId();
         User currentUser = verifyProjectAccess(projectId, currentUsername);
 
-        if (currentUser.getRole() != Role.LEADER && (testCase.getCreatedBy() == null || !testCase.getCreatedBy().getId().equals(currentUser.getId()))) {
-            throw new AccessDeniedException("Only the creator can submit this test case for review");
+        if (currentUser.getRole() != Role.TESTER || testCase.getCreatedBy() == null || !testCase.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Only the owning Tester can submit this test case for review");
         }
 
         if (testCase.getStatus() != TestCaseStatus.DRAFT) {
@@ -198,6 +198,7 @@ public class TestCaseService {
         }
 
         testCase.setStatus(TestCaseStatus.REVIEW);
+        testCase.setSubmittedAt(LocalDateTime.now());
         TestCase saved = testCaseRepository.save(testCase);
 
         auditLogService.logAction(currentUser.getId(), "SUBMIT_TEST_CASE", "TEST_CASE", caseId, "Submitted test case for review: " + saved.getCode());
@@ -246,6 +247,7 @@ public class TestCaseService {
         }
 
         testCase.setStatus(TestCaseStatus.DRAFT);
+        testCase.setSubmittedAt(null);
         testCase.setReviewComment(request.getReviewComment());
         testCase.setReviewedBy(currentUser);
         testCase.setReviewedAt(LocalDateTime.now());
@@ -293,7 +295,7 @@ public class TestCaseService {
             throw new AccessDeniedException("Only Leader can view the review queue");
         }
 
-        List<TestCase> reviewCases = testCaseRepository.findByStatusOrderByCreatedAtAsc(TestCaseStatus.REVIEW);
+        List<TestCase> reviewCases = testCaseRepository.findByStatusOrderBySubmittedAtAsc(TestCaseStatus.REVIEW);
         return reviewCases.stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
@@ -344,6 +346,7 @@ public class TestCaseService {
                 reviewedById,
                 reviewedByName,
                 tc.getReviewedAt(),
+                tc.getSubmittedAt(),
                 tc.getCreatedAt(),
                 tc.getUpdatedAt()
         );

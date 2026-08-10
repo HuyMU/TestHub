@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface TestCaseRepository extends JpaRepository<TestCase, Long>, JpaSpecificationExecutor<TestCase> {
 
-    List<TestCase> findByStatusOrderByCreatedAtAsc(TestCaseStatus status);
+    List<TestCase> findByStatusOrderBySubmittedAtAsc(TestCaseStatus status);
 
     boolean existsBySectionId(Long sectionId);
 }

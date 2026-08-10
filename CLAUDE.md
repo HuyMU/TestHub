@@ -128,6 +128,7 @@ TestHub/
 18. **Auto-Create Section Hierarchy on Import**: If a sheet name or Subsection Path segment does not match an existing Section/Subsection in the project, the system automatically creates it (reusing Section creation logic) at Import Confirm time — never blocks import with an error for this reason.
 19. **Format-Agnostic Import Parsing**: Import parsing reads only cell TEXT content — font, size, color, bold/italic, alignment, or any other cell styling in the uploaded file is completely ignored and never affects recognition or validation.
 20. **Steps/Expected Result Numbered Correspondence**: Within a single cell, each line is expected to start with a flexible numeric marker (`1.`, `1)`, `1:`, `Step 1:`, case-insensitive, extra whitespace tolerated). The `Expected Result` cell only contains entries for step numbers that produce an observable result — a step number is simply absent from `Expected Result` if that step has no distinct result to check.
+21. **Review Submission Timestamp**: `test_cases.submitted_at` is set when a Tester submits a case for review (`Draft` → `Review`) and is the sort key for the review queue (`submitted_at ASC`), NOT `created_at`. When a Leader rejects a case (`Review` → `Draft`), `submitted_at` is cleared to `null` so that subsequent re-submission receives a fresh FIFO queue position.
 
 ---
 
