@@ -111,7 +111,8 @@ erDiagram
 | GET/POST/PUT | `/api/projects` | CRUD projects | Leader (Read: Tester assigned) | ✅ Implemented (Slice 2) |
 | POST/DELETE | `/api/projects/{id}/members` | Assign / Remove Testers for Project | Leader | ✅ Implemented (Slice 2) |
 | GET/POST/PUT/DELETE | `/api/projects/{id}/sections` | Section/Subsection management | Leader / Tester (No delete for Tester) | ✅ Implemented (Slice 3) |
-| GET/POST/PUT/DELETE | `/api/cases` | Test Case CRUD | Leader / Tester | ✅ Implemented (Slice 4) |
+| GET/POST | `/api/projects/{projectId}/cases` | List / Create Test Cases in Project | Leader / Tester | ✅ Implemented (Slice 4) |
+| GET/PUT/DELETE | `/api/cases/{id}` | Get / Update / Delete Test Case by ID | Leader / Owner Tester | ✅ Implemented (Slice 4) |
 | POST | `/api/cases/{id}/submit-review` | Submit Test Case for review | Tester (Owner) | ✅ Implemented (Slice 4) |
 | POST | `/api/cases/{id}/approve` | Approve Test Case (`Review` → `Ready`) | Leader | ✅ Implemented (Slice 4) |
 | POST | `/api/cases/{id}/reject` | Reject Test Case (`Review` → `Draft`) | Leader | ✅ Implemented (Slice 4) |
