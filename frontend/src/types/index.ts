@@ -126,3 +126,10 @@ export interface TestRun {
   untestedCases?: number;
   cases?: TestRunCase[];
 }
+
+export interface ApiResponse<T> {
+  success: boolean;
+  code: string;
+  message: string;
+  data: T;
+}

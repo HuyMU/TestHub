@@ -126,9 +126,12 @@ erDiagram
 | POST | `/api/runs/{id}/close` | Close Test Run | Leader | ✅ Implemented (Slice 6) |
 | POST | `/api/runs/{id}/cases/{caseId}/execute` | Record manual test execution result | Leader / Assigned Tester | ✅ Implemented (Slice 7) |
 | POST | `/api/runs/{id}/cases/{caseId}/review` | Review execution result (`Reviewed` / `Retest`) | Leader | ✅ Implemented (Slice 7) |
-| GET | `/api/runs/{id}/cases/{caseId}/history` | List execution history for a case in run | Leader / Tester | ✅ Implemented (Slice 7) |
+| POST | `/api/runs/{id}/cases/{caseId}/history` | List execution history for a case in run | Leader / Tester | ✅ Implemented (Slice 7) |
 | POST | `/api/attachments/upload` | Upload attachment file to local filesystem | Leader / Tester | ✅ Implemented (Slice 7) |
-| POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) | Stub (Slice 8) |
+| POST | `/api/tokens` | Generate new API Token (plaintext token returned once) | Leader | ✅ Implemented (Slice 8) |
+| GET | `/api/tokens` | List API Tokens | Leader | ✅ Implemented (Slice 8) |
+| DELETE | `/api/tokens/{id}` | Revoke API Token | Leader | ✅ Implemented (Slice 8) |
+| POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) | ✅ Implemented (Slice 8) |
 | GET | `/api/runs/{id}/report` | Generate Run report / Export Run to Excel | Leader / Tester | Stub |
 | GET | `/api/dashboard/{projectId}` | Fetch aggregated dashboard metrics | Leader / Tester | Stub |
 

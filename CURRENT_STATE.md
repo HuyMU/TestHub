@@ -4,7 +4,7 @@
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
 - **Last Updated**: 2026-08-10
-- **Checked Commit**: `1d79860` (Branch: `main`)
+- **Checked Commit**: `c8e9af3` (Branch: `main`)
 
 ---
 
@@ -28,19 +28,16 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 | **Milestones** | `Complete` | Leader-only Milestone CRUD (`/api/projects/{projectId}/milestones`), duplicate name protection, deletion guard returning 409 Conflict if referenced by existing Test Runs, frontend `MilestoneListPage.tsx` workbench. |
 | **Test Runs** | `Complete` | Test Run creation selecting `READY` cases (with optional `includeNonReady` switch), milestone linking, Tester assignment per case, snapshotting content fields to `test_run_cases`, closing run (`POST /api/runs/{id}/close`), frontend `TestRunListPage.tsx`, `CreateTestRunModal.tsx`, `TestRunDetailPage.tsx`. |
 | **Execution** | `Complete` | Manual execution recording (`PASSED`/`FAILED`/`BLOCKED`/`RETEST`) with mandatory `resultStatus` validation, assignment check & closed run guard (409), execution history append logging (`execution_history`), Leader result review (`Reviewed` approve or `Request Retest` with mandatory comment). Returns `latestExecutionHistoryId` for multi-file attachment linkage. Unified `verifyRunCaseAccess()` and `verifyExecutionHistoryAccess()` guards eliminate IDOR vulnerabilities across history and attachment endpoints (403 for non-project members). |
-| **Automation API** | `Stub` | Skeleton endpoint `POST /api/automation/results` with `X-API-TOKEN`. `token_hash` & `revoked_at` schema added in V2 migration. Logic pending Slice 8. |
+| **Automation API** | `Complete` | API Token management (`/api/tokens`) storing SHA-256 digests (`token_hash`) in `api_tokens` table. Plaintext token returned ONCE upon generation (`ApiTokenCreatedDto`). Automated result ingestion (`POST /api/automation/results`) authenticated via `X-API-TOKEN` header (Rule 8 public HTTP layer). Ingestion resolves `TestRun` and `TestCase` by `code` (`TC-%04d`), updates `TestRunCase` result status, appends `ExecutionHistory`, and updates token `last_used_at`. Frontend `ApiTokenPage.tsx` wired with token creation modal and revocation Popconfirm. |
 | **Attachments** | `Complete` | Real 1-to-many local filesystem upload (`POST /api/attachments/upload`) tied to `EXECUTION_HISTORY`, file format validation (`image/*`, `application/pdf`), 10MB size limit. Public `/uploads/**` path closed; secure authenticated endpoint `GET /api/attachments/{id}/file` enforces project member authorization (200/403/401). Internal `filePath` field removed from REST responses to sanitize disk file path exposure. |
-| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`, `IMPORT_VALIDATE_EXCEL`, `IMPORT_CONFIRM_EXCEL`, `EXPORT_EXCEL`, `CREATE_MILESTONE`, `UPDATE_MILESTONE`, `DELETE_MILESTONE`, `CREATE_TESTRUN`, `ADD_CASES_TO_RUN`, `CLOSE_TESTRUN`, `EXECUTE_TEST_CASE`, `REVIEW_TEST_RESULT`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
+| **Audit Logs** | `Complete` | `AuditLogService` writes audit records (`CREATE_TESTER`, `UPDATE_TESTER`, `CHANGE_PASSWORD`, `CREATE_PROJECT`, `UPDATE_PROJECT`, `ASSIGN_PROJECT_MEMBERS`, `REMOVE_PROJECT_MEMBER`, `CREATE_SECTION`, `UPDATE_SECTION`, `DELETE_SECTION`, `REORDER_SECTIONS`, `CREATE_TEST_CASE`, `UPDATE_TEST_CASE`, `DELETE_TEST_CASE`, `SUBMIT_TEST_CASE`, `APPROVE_TEST_CASE`, `REJECT_TEST_CASE`, `CLONE_TEST_CASE`, `IMPORT_VALIDATE_EXCEL`, `IMPORT_CONFIRM_EXCEL`, `EXPORT_EXCEL`, `CREATE_MILESTONE`, `UPDATE_MILESTONE`, `DELETE_MILESTONE`, `CREATE_TESTRUN`, `ADD_CASES_TO_RUN`, `CLOSE_TESTRUN`, `EXECUTE_TEST_CASE`, `REVIEW_TEST_RESULT`, `CREATE_API_TOKEN`, `REVOKE_API_TOKEN`, `AUTOMATION_SUBMIT_RESULT`) to `audit_logs` table. `AuditLogController` serves filtered audit trail (`GET /api/audit-logs`, Leader only). |
 | **Dashboard** | `Stub` | Skeleton `DashboardController` returning mock 0 metrics. Logic pending Slice 9. |
-| **Frontend** | `Complete` | Layout, Navigation, Auth (Login), User Management, Project Management, Section Management (`SectionTree`), Test Case Management (`TestCaseList`), Review Workflow (`ReviewQueuePage`), Excel Import/Export (`ImportWizardModal`, `ExportSectionPickerModal`), Milestone Management (`MilestoneListPage`), Test Run & Execution Management (`TestRunListPage`, `CreateTestRunModal`, `TestRunDetailPage`, `ExecuteResultModal`, `ReviewResultModal`) fully integrated with secure attachment downloading. Placeholder page exists for API Tokens. Dead code `ImportModal.tsx` removed. |
+| **Frontend** | `Complete` | Layout, Navigation, Auth (Login), User Management, Project Management, Section Management (`SectionTree`), Test Case Management (`TestCaseList`), Review Workflow (`ReviewQueuePage`), Excel Import/Export (`ImportWizardModal`, `ExportSectionPickerModal`), Milestone Management (`MilestoneListPage`), Test Run & Execution Management (`TestRunListPage`, `CreateTestRunModal`, `TestRunDetailPage`, `ExecuteResultModal`, `ReviewResultModal`), and API Token Management (`ApiTokenPage.tsx`) fully integrated. |
 
 ---
 
 ## 3. Incomplete & Stub Modules Detail
 
-- **Automation Result Ingestion (`automation/`)**:
-  - *Current Code*: Skeleton controller for automated test result API ingestion (`POST /api/automation/results`).
-  - *Missing*: API Token SHA-256 hash verification (`token_hash`, `revoked_at`), automated result ingestion logic & run/case update.
 - **Dashboard (`dashboard/`)**:
   - *Current Code*: Skeleton `DashboardController.java` returning static zero metrics.
   - *Missing*: Database aggregation queries for Pass/Fail/Blocked rates, Review Queue counter, Milestone progress.
@@ -50,7 +47,7 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 ## 4. Current Environment & Operational Notes
 
 1. **Integration Testing**:
-   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`, `ExcelControllerIntegrationTest`, `MilestoneControllerIntegrationTest`, `TestRunControllerIntegrationTest`, `ExecutionControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
+   - Integration tests (`AuthControllerIntegrationTest`, `UserControllerIntegrationTest`, `ProjectControllerIntegrationTest`, `SectionControllerIntegrationTest`, `TestCaseControllerIntegrationTest`, `ExcelControllerIntegrationTest`, `MilestoneControllerIntegrationTest`, `TestRunControllerIntegrationTest`, `ExecutionControllerIntegrationTest`, `ApiTokenControllerIntegrationTest`, `AutomationControllerIntegrationTest`) use **Testcontainers MySQL 8**. Docker daemon must be running locally for Testcontainers to spin up test databases.
 2. **Database Migration & Seeding**:
    - Database migrations managed by Flyway (`V1__init_schema.sql`, `V2__add_architecture_decisions_schema.sql`, `V3__add_submitted_at_to_test_cases.sql`).
    - Default Leader account is seeded automatically on application startup by `LeaderSeeder.java`.
@@ -92,8 +89,8 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 8: Automation Result Ingestion API (FR-28/29)**
-- *Scope*: Implement API Token management (`api_tokens`), token generation & SHA-256 hashing, revocation, and automated result ingestion endpoint (`POST /api/automation/results`) accepting framework report payloads.
+**Slice 9: Dashboard & Reporting (FR-30/31)**
+- *Scope*: Implement aggregated statistics API (`GET /api/dashboard/{projectId}`) computing Pass/Fail/Blocked execution rates, active review queue counters, milestone progress, and exportable run reports (`GET /api/runs/{id}/report`).
 
 ---
 
@@ -128,3 +125,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 18. **Execution History 1-to-Many Attachment Linkage & Project-Level Authorization (2026-08-10)**: Executing a case (`POST /api/runs/{id}/cases/{caseId}/execute`) returns `latestExecutionHistoryId`. Attachments are uploaded afterwards via `POST /api/attachments/upload` with `entityType=EXECUTION_HISTORY` and `entityId={latestExecutionHistoryId}` supporting multiple files per execution attempt. Public `/uploads/**` static path is removed from `SecurityConfig`. Secure endpoint `GET /api/attachments/{id}/file` streams file resources after verifying project-level membership (returns 403 for non-members, 401 unauthenticated).
 19. **Unified Execution Authorization & Attachment DTO Path Sanitization (2026-08-10)**: Standardized project membership authorization in `ExecutionService` via `verifyRunCaseAccess()` and `verifyExecutionHistoryAccess()`, eliminating IDOR vulnerabilities across history and attachment listing endpoints (returns 403 Forbidden for non-project members). Internal `filePath` field removed from `AttachmentDto` and REST API JSON responses to prevent disk file structure leakage.
 20. **Review Submission Timestamp & Owning Tester submitForReview Guard (2026-08-10)**: `submitForReview()` restricted strictly to owning Testers (`Role.TESTER` and `createdBy == currentUser`). Leader calls return 403 Forbidden. Flyway migration `V3__add_submitted_at_to_test_cases.sql` adds `submitted_at` DATETIME column. `submitForReview()` sets `submitted_at = LocalDateTime.now()`, while `rejectTestCase()` clears `submitted_at = null` to give resubmissions fresh FIFO queue ordering (`findByStatusOrderBySubmittedAtAsc`). Dead code enums (`Priority`, `AutomationStatus`, `CaseStatus` in `common/`) and unreferenced `ImportModal.tsx` deleted.
+21. **API Token Management & Automated Result Ingestion (2026-08-10)**: Implemented API token management (`com.testhub.testflowlite.apitoken`) storing SHA-256 digests (`token_hash`) in `api_tokens` table. Plaintext token (`thk_...`) returned ONCE upon generation (`ApiTokenCreatedDto`). Implemented automated result ingestion (`POST /api/automation/results`) authenticated via `X-API-TOKEN` header (public HTTP layer per Rule 8). Ingestion resolves `TestRun` and `TestCase` by `code` (`TC-%04d`), updates `TestRunCase` result status, appends `ExecutionHistory`, and updates token `last_used_at`. Rebuilt frontend `ApiTokenPage.tsx` with copy-once token modal and token revocation Popconfirm.

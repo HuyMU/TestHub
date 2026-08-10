@@ -69,6 +69,7 @@ TestHub/
 │   ├── milestone/          # Milestone management (name, due date)
 │   ├── testrun/            # Test Run creation & case assignments
 │   ├── execution/          # Execution state recording & Leader review
+│   ├── apitoken/           # API token management & SHA-256 hash storage
 │   ├── automation/         # Automation REST API (/api/automation/results with API token)
 │   ├── attachment/         # Local filesystem upload handlers
 │   ├── audit/              # Audit logging hooks & query endpoints

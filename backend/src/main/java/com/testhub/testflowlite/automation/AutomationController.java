@@ -13,12 +13,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Automation Results API", description = "Endpoint for ingestion of automated test results (API Token Auth)")
 public class AutomationController {
 
+    private final AutomationService automationService;
+
     @PostMapping("/results")
     @Operation(summary = "Post Automated Test Result", security = @SecurityRequirement(name = "apiToken"))
     public ApiResponse<Void> submitResult(
-            @RequestHeader(value = "X-API-TOKEN", required = true) String apiToken,
+            @RequestHeader(value = "X-API-TOKEN", required = false) String apiToken,
             @RequestBody AutomationResultDto dto) {
-        // TODO: Implement API token validation & result ingestion
+        automationService.submitResult(apiToken, dto);
         return ApiResponse.success("Automated test result ingested successfully", null);
     }
 }
