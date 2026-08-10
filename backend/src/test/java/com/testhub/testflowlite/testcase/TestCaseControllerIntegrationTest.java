@@ -318,6 +318,67 @@ class TestCaseControllerIntegrationTest {
     }
 
     @Test
+    void testApproveTestCase_Success() throws Exception {
+        TestCase tc = createDummyTestCase(section, testerA, TestCaseStatus.REVIEW);
+
+        mockMvc.perform(post("/api/cases/" + tc.getId() + "/approve")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"))
+                .andExpect(jsonPath("$.data.reviewedById").value(leader.getId()));
+    }
+
+    @Test
+    void testRejectTestCase_Success() throws Exception {
+        TestCase tc = createDummyTestCase(section, testerA, TestCaseStatus.REVIEW);
+        RejectTestCaseRequest req = new RejectTestCaseRequest("Please add more detailed steps.");
+
+        mockMvc.perform(post("/api/cases/" + tc.getId() + "/reject")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.reviewComment").value("Please add more detailed steps."));
+    }
+
+    @Test
+    void testTesterApproveOrReject_Forbidden403() throws Exception {
+        TestCase tc = createDummyTestCase(section, testerA, TestCaseStatus.REVIEW);
+
+        mockMvc.perform(post("/api/cases/" + tc.getId() + "/approve")
+                        .header("Authorization", "Bearer " + testerAToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testDeleteTestCase_OwnerDraftSuccess_NonOwnerForbidden() throws Exception {
+        TestCase tc1 = createDummyTestCase(section, testerA, TestCaseStatus.DRAFT);
+
+        // Tester B trying to delete Tester A's case -> 403
+        mockMvc.perform(delete("/api/cases/" + tc1.getId())
+                        .header("Authorization", "Bearer " + testerBToken))
+                .andExpect(status().isForbidden());
+
+        // Tester A deleting own case -> 200
+        mockMvc.perform(delete("/api/cases/" + tc1.getId())
+                        .header("Authorization", "Bearer " + testerAToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testCloneTestCase_Success() throws Exception {
+        TestCase tc = createDummyTestCase(section, testerA, TestCaseStatus.READY);
+
+        mockMvc.perform(post("/api/cases/" + tc.getId() + "/clone")
+                        .header("Authorization", "Bearer " + testerBToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value(tc.getTitle() + " (Copy)"))
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.createdById").value(testerB.getId()));
+    }
+
+    @Test
     void testReviewQueue_LeaderSuccess_TesterForbidden() throws Exception {
         createDummyTestCase(section, testerA, TestCaseStatus.REVIEW);
         createDummyTestCase(section, testerB, TestCaseStatus.REVIEW);
