@@ -88,10 +88,13 @@ export const getTestRunReport = async (runId: number): Promise<TestRunReport> =>
 };
 
 export const exportTestRunReport = async (runId: number, runName: string): Promise<void> => {
-  const response = await axiosClient.get(`/runs/${runId}/report/export`, {
+  const response: any = await axiosClient.get(`/runs/${runId}/report/export`, {
     responseType: 'blob',
   });
-  const url = window.URL.createObjectURL(new Blob([response.data as any]));
+  const blob = new Blob([response.data || response], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', `TestRun_Report_${runName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${runId}.xlsx`);

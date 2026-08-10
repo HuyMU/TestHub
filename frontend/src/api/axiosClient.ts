@@ -33,6 +33,14 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+/**
+ * WARNING: Interceptor này unwrap response.data một lần ở tầng axios.
+ * Mọi hàm gọi axiosClient.get/post/put/delete() phải coi giá trị trả về là payload JSON thô
+ * (ApiResponse<T> cho JSON response, hoặc Blob thô khi config { responseType: 'blob' }) — KHÔNG PHẢI AxiosResponse<T>.
+ * 
+ * - Với JSON API modules: dùng response.data để lấy T (ví dụ: return response.data trong *Api.ts).
+ * - Với Blob / file download: dùng (response.data || response) để lấy Blob thô (một số JS runtime giữ field .data, một số không).
+ */
 axiosClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {

@@ -29,12 +29,8 @@ export const DashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await dashboardApi.getDashboard(Number(projectId));
-        if (res.success && res.data) {
-          setData(res.data);
-        } else {
-          setError(res.message || 'Failed to load dashboard metrics');
-        }
+        const data = await dashboardApi.getDashboard(Number(projectId));
+        setData(data);
       } catch (err: any) {
         setError(err.response?.data?.message || err.message || 'Failed to load dashboard metrics');
       } finally {

@@ -25,8 +25,8 @@ export interface DashboardDto {
 }
 
 export const dashboardApi = {
-  getDashboard: async (projectId: number): Promise<ApiResponse<DashboardDto>> => {
-    const response = await axiosClient.get<ApiResponse<DashboardDto>>(`/dashboard/${projectId}`);
+  getDashboard: async (projectId: number): Promise<DashboardDto> => {
+    const response: any = await axiosClient.get(`/dashboard/${projectId}`);
     return response.data;
   },
 };
