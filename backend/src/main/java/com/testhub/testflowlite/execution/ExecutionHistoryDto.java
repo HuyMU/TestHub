@@ -5,12 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExecutionDto {
+public class ExecutionHistoryDto {
+    private Long id;
+    private Long runCaseId;
     private ResultStatus resultStatus;
     private String comment;
-    private String defectRef;
-    private String attachmentUrl;
+    private String executedBy;
+    private LocalDateTime executedAt;
 }

@@ -12,7 +12,8 @@ import {
   Popconfirm,
   message,
   Statistic,
-  Badge,
+  Timeline,
+  Tooltip,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -22,12 +23,20 @@ import {
   ClockCircleOutlined,
   LockOutlined,
   DeleteOutlined,
+  PlayCircleOutlined,
+  CheckOutlined,
+  SyncOutlined,
+  HistoryOutlined,
+  FileOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '../../components/PageHeader';
 import { TestRunCase } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { useTestRunStore } from './useTestRunStore';
 import * as testRunApi from './testRunApi';
+import * as executionApi from '../execution/executionApi';
+import { ExecuteResultModal } from '../execution/ExecuteResultModal';
+import { ReviewResultModal } from '../execution/ReviewResultModal';
 
 const { Text, Paragraph } = Typography;
 
@@ -39,6 +48,18 @@ export const TestRunDetailPage: React.FC = () => {
 
   const { currentRun, loading, fetchRunDetail } = useTestRunStore();
   const [closing, setClosing] = useState(false);
+
+  // Execution modal state
+  const [executeModalOpen, setExecuteModalOpen] = useState(false);
+  const [selectedCaseForExec, setSelectedCaseForExec] = useState<TestRunCase | null>(null);
+
+  // Retest review modal state
+  const [retestModalOpen, setRetestModalOpen] = useState(false);
+  const [selectedCaseForRetest, setSelectedCaseForRetest] = useState<TestRunCase | null>(null);
+
+  // Execution history state per caseId
+  const [histories, setHistories] = useState<Record<number, executionApi.ExecutionHistoryItem[]>>({});
+  const [loadingHistory, setLoadingHistory] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (runId) {
@@ -68,6 +89,40 @@ export const TestRunDetailPage: React.FC = () => {
       fetchRunDetail(currentRun.id);
     } catch (err: any) {
       message.error(err?.response?.data?.message || 'Failed to remove case');
+    }
+  };
+
+  const handleOpenExecute = (record: TestRunCase) => {
+    setSelectedCaseForExec(record);
+    setExecuteModalOpen(true);
+  };
+
+  const handleLeaderApprove = async (record: TestRunCase) => {
+    if (!currentRun) return;
+    try {
+      await executionApi.reviewResult(currentRun.id, record.caseId, true);
+      message.success('Execution result marked as Reviewed');
+      fetchRunDetail(currentRun.id);
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Failed to approve review');
+    }
+  };
+
+  const handleOpenRetestModal = (record: TestRunCase) => {
+    setSelectedCaseForRetest(record);
+    setRetestModalOpen(true);
+  };
+
+  const fetchCaseHistory = async (caseId: number) => {
+    if (!currentRun) return;
+    setLoadingHistory((prev) => ({ ...prev, [caseId]: true }));
+    try {
+      const historyList = await executionApi.getExecutionHistory(currentRun.id, caseId);
+      setHistories((prev) => ({ ...prev, [caseId]: historyList }));
+    } catch (err: any) {
+      // Ignore background error
+    } finally {
+      setLoadingHistory((prev) => ({ ...prev, [caseId]: false }));
     }
   };
 
@@ -104,30 +159,81 @@ export const TestRunDetailPage: React.FC = () => {
       title: 'Result Status',
       dataIndex: 'resultStatus',
       key: 'resultStatus',
-      width: 130,
-      render: (val: string) => {
+      width: 180,
+      render: (val: string, record: TestRunCase) => {
+        let tag = <Tag color="default" icon={<ClockCircleOutlined />}>Untested</Tag>;
         switch (val) {
           case 'PASSED':
-            return <Tag color="green" icon={<CheckCircleOutlined />}>Passed</Tag>;
+            tag = <Tag color="green" icon={<CheckCircleOutlined />}>Passed</Tag>;
+            break;
           case 'FAILED':
-            return <Tag color="red" icon={<CloseCircleOutlined />}>Failed</Tag>;
+            tag = <Tag color="red" icon={<CloseCircleOutlined />}>Failed</Tag>;
+            break;
           case 'BLOCKED':
-            return <Tag color="orange" icon={<MinusCircleOutlined />}>Blocked</Tag>;
+            tag = <Tag color="orange" icon={<MinusCircleOutlined />}>Blocked</Tag>;
+            break;
           case 'RETEST':
-            return <Tag color="purple">Retest</Tag>;
-          case 'UNTESTED':
-          default:
-            return <Tag color="default" icon={<ClockCircleOutlined />}>Untested</Tag>;
+            tag = <Tag color="purple" icon={<SyncOutlined />}>Retest</Tag>;
+            break;
         }
+
+        return (
+          <Space>
+            {tag}
+            {record.isReviewed && <Tag color="blue">Reviewed</Tag>}
+          </Space>
+        );
       },
     },
-    ...(isLeader && currentRun?.status === 'OPEN'
-      ? [
-          {
-            title: 'Actions',
-            key: 'actions',
-            width: 80,
-            render: (_: any, record: TestRunCase) => (
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 260,
+      render: (_: any, record: TestRunCase) => {
+        const isOpen = currentRun?.status === 'OPEN';
+        const isAssigned = record.assignedToId === user?.id;
+        const canExecute = isOpen && (isLeader || isAssigned);
+        const canReview = isLeader && record.resultStatus !== 'UNTESTED';
+
+        return (
+          <Space size="small">
+            {canExecute && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                onClick={() => handleOpenExecute(record)}
+              >
+                Execute
+              </Button>
+            )}
+
+            {canReview && (
+              <>
+                <Tooltip title="Mark Result as Reviewed">
+                  <Button
+                    type="default"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={() => handleLeaderApprove(record)}
+                  >
+                    Approve
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Request Retest (requires comment)">
+                  <Button
+                    danger
+                    size="small"
+                    icon={<SyncOutlined />}
+                    onClick={() => handleOpenRetestModal(record)}
+                  >
+                    Retest
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+
+            {isLeader && isOpen && (
               <Popconfirm
                 title="Remove Case"
                 description="Remove this case from Test Run?"
@@ -137,10 +243,11 @@ export const TestRunDetailPage: React.FC = () => {
               >
                 <Button type="text" size="small" danger icon={<DeleteOutlined />} title="Remove Case" />
               </Popconfirm>
-            ),
-          },
-        ]
-      : []),
+            )}
+          </Space>
+        );
+      },
+    },
   ];
 
   return (
@@ -215,21 +322,107 @@ export const TestRunDetailPage: React.FC = () => {
           dataSource={currentRun?.cases || []}
           pagination={{ pageSize: 10 }}
           expandable={{
-            expandedRowRender: (record) => (
-              <div style={{ padding: '8px 16px', background: '#fafafa', borderRadius: 6 }}>
-                <Paragraph><strong>Precondition:</strong> {record.precondition || 'None'}</Paragraph>
-                <Paragraph><strong>Steps:</strong></Paragraph>
-                <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{record.steps}</pre>
-                <Paragraph><strong>Expected Result:</strong></Paragraph>
-                <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{record.expectedResult}</pre>
-                {record.testData && (
-                  <Paragraph><strong>Test Data:</strong> {record.testData}</Paragraph>
-                )}
-              </div>
-            ),
+            onExpand: (expanded, record) => {
+              if (expanded) {
+                fetchCaseHistory(record.caseId);
+              }
+            },
+            expandedRowRender: (record) => {
+              const historyList = histories[record.caseId] || [];
+              const isHistLoading = loadingHistory[record.caseId];
+
+              return (
+                <div style={{ padding: '12px 20px', background: '#fafafa', borderRadius: 6 }}>
+                  <Paragraph><strong>Precondition:</strong> {record.precondition || 'None'}</Paragraph>
+                  <Paragraph><strong>Steps:</strong></Paragraph>
+                  <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{record.steps}</pre>
+                  <Paragraph><strong>Expected Result:</strong></Paragraph>
+                  <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{record.expectedResult}</pre>
+                  {record.testData && (
+                    <Paragraph><strong>Test Data:</strong> {record.testData}</Paragraph>
+                  )}
+                  {record.defectRef && (
+                    <Paragraph><strong>Defect Ref:</strong> <Tag color="volcano">{record.defectRef}</Tag></Paragraph>
+                  )}
+
+                  <div style={{ marginTop: 16 }}>
+                    <Space style={{ marginBottom: 12 }}>
+                      <HistoryOutlined style={{ color: '#1890ff' }} />
+                      <Text strong>Execution History Logs</Text>
+                    </Space>
+
+                    {isHistLoading ? (
+                      <div>Loading execution history...</div>
+                    ) : historyList.length > 0 ? (
+                      <Timeline
+                        mode="left"
+                        style={{ marginTop: 8 }}
+                        items={historyList.map((item) => ({
+                          color:
+                            item.resultStatus === 'PASSED'
+                              ? 'green'
+                              : item.resultStatus === 'FAILED'
+                              ? 'red'
+                              : item.resultStatus === 'BLOCKED'
+                              ? 'orange'
+                              : 'purple',
+                          children: (
+                            <div>
+                              <Space>
+                                <Tag color={item.resultStatus === 'PASSED' ? 'green' : item.resultStatus === 'FAILED' ? 'red' : 'orange'}>
+                                  {item.resultStatus}
+                                </Tag>
+                                <Text type="secondary">{item.executedBy || 'Unknown'} at {new Date(item.executedAt).toLocaleString()}</Text>
+                              </Space>
+                              {item.comment && (
+                                <p style={{ margin: '4px 0 0 0', color: '#595959' }}>{item.comment}</p>
+                              )}
+                            </div>
+                          ),
+                        }))}
+                      />
+                    ) : (
+                      <Paragraph type="secondary">No execution history recorded yet.</Paragraph>
+                    )}
+                  </div>
+                </div>
+              );
+            },
           }}
         />
       </Card>
+
+      {/* Execution Modal */}
+      {selectedCaseForExec && (
+        <ExecuteResultModal
+          runId={currentRun?.id || 0}
+          runCase={selectedCaseForExec}
+          open={executeModalOpen}
+          onCancel={() => {
+            setExecuteModalOpen(false);
+            setSelectedCaseForExec(null);
+          }}
+          onSuccess={() => {
+            if (currentRun) fetchRunDetail(currentRun.id);
+          }}
+        />
+      )}
+
+      {/* Retest Review Modal */}
+      {selectedCaseForRetest && (
+        <ReviewResultModal
+          runId={currentRun?.id || 0}
+          runCase={selectedCaseForRetest}
+          open={retestModalOpen}
+          onCancel={() => {
+            setRetestModalOpen(false);
+            setSelectedCaseForRetest(null);
+          }}
+          onSuccess={() => {
+            if (currentRun) fetchRunDetail(currentRun.id);
+          }}
+        />
+      )}
     </div>
   );
 };
