@@ -35,6 +35,14 @@ export const AppRoutes: React.FC = () => {
         }
       />
       <Route
+        path="/projects/:projectId/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/projects"
         element={
           <ProtectedRoute>

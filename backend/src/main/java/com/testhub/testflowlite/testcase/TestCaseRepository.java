@@ -15,4 +15,8 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long>, JpaSp
     Optional<TestCase> findByCode(String code);
 
     boolean existsBySectionId(Long sectionId);
+
+    long countBySectionProjectId(Long projectId);
+
+    long countBySectionProjectIdAndStatus(Long projectId, TestCaseStatus status);
 }

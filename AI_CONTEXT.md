@@ -133,8 +133,9 @@ erDiagram
 | GET | `/api/tokens` | List API Tokens | Leader | ✅ Implemented (Slice 8) |
 | DELETE | `/api/tokens/{id}` | Revoke API Token | Leader | ✅ Implemented (Slice 8) |
 | POST | `/api/automation/results` | Submit automated test execution result | API Token (`X-API-TOKEN`) | ✅ Implemented (Slice 8) |
-| GET | `/api/runs/{id}/report` | Generate Run report / Export Run to Excel | Leader / Tester | Stub |
-| GET | `/api/dashboard/{projectId}` | Fetch aggregated dashboard metrics | Leader / Tester | Stub |
+| GET | `/api/runs/{id}/report` | Get detailed Test Run execution report JSON | Leader / Tester | ✅ Implemented (Slice 9) |
+| GET | `/api/runs/{id}/report/export` | Export detailed Test Run report to formatted Excel sheet | Leader / Tester | ✅ Implemented (Slice 9) |
+| GET | `/api/dashboard/{projectId}` | Fetch aggregated project dashboard metrics & milestone progress | Leader / Tester | ✅ Implemented (Slice 9) |
 
 ---
 

@@ -9,4 +9,5 @@ import java.util.List;
 public interface TestRunRepository extends JpaRepository<TestRun, Long> {
     List<TestRun> findByProjectIdOrderByCreatedAtDesc(Long projectId);
     boolean existsByMilestoneId(Long milestoneId);
+    List<TestRun> findByMilestoneId(Long milestoneId);
 }

@@ -278,4 +278,149 @@ public class TestRunService {
                 null
         );
     }
+
+    @Transactional(readOnly = true)
+    public TestRunReportDto generateReport(Long runId, String currentUsername) {
+        TestRun run = testRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Test Run not found: " + runId));
+        verifyProjectAccess(run.getProject().getId(), currentUsername);
+
+        List<TestRunCase> runCases = testRunCaseRepository.findByRunIdOrderByIdAsc(run.getId());
+        long total = runCases.size();
+        long passed = runCases.stream().filter(c -> c.getResultStatus() == ResultStatus.PASSED).count();
+        long failed = runCases.stream().filter(c -> c.getResultStatus() == ResultStatus.FAILED).count();
+        long blocked = runCases.stream().filter(c -> c.getResultStatus() == ResultStatus.BLOCKED).count();
+        long retest = runCases.stream().filter(c -> c.getResultStatus() == ResultStatus.RETEST).count();
+        long untested = runCases.stream().filter(c -> c.getResultStatus() == ResultStatus.UNTESTED).count();
+
+        double passRate = total > 0 ? (passed * 100.0) / total : 0.0;
+        long completed = total - untested;
+        double completionRate = total > 0 ? (completed * 100.0) / total : 0.0;
+
+        List<TestRunCaseReportDto> caseReports = runCases.stream().map(c -> new TestRunCaseReportDto(
+                c.getCaseId(),
+                String.format("TC-%04d", c.getCaseId()),
+                c.getTitle(),
+                c.getAssignedTo() != null ? c.getAssignedTo().getFullName() : "Unassigned",
+                c.getResultStatus(),
+                c.getExecutedBy() != null ? c.getExecutedBy() : "N/A",
+                c.getExecutedAt(),
+                c.getComment(),
+                c.getDefectRef()
+        )).collect(Collectors.toList());
+
+        return new TestRunReportDto(
+                run.getId(),
+                run.getName(),
+                run.getProject().getName(),
+                run.getMilestone() != null ? run.getMilestone().getName() : "None",
+                run.getStatus(),
+                run.getClosedAt(),
+                total,
+                passed,
+                failed,
+                blocked,
+                retest,
+                untested,
+                Math.round(passRate * 100.0) / 100.0,
+                Math.round(completionRate * 100.0) / 100.0,
+                caseReports
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportReportToExcel(Long runId, String currentUsername) {
+        TestRunReportDto report = generateReport(runId, currentUsername);
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Run Report");
+
+            org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+            font.setFontName("Times New Roman");
+            font.setFontHeightInPoints((short) 13);
+
+            org.apache.poi.ss.usermodel.CellStyle normalStyle = workbook.createCellStyle();
+            normalStyle.setFont(font);
+
+            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            headerFont.setFontName("Times New Roman");
+            headerFont.setFontHeightInPoints((short) 13);
+            headerFont.setBold(true);
+
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFont(headerFont);
+
+            int rowNum = 0;
+
+            // Summary Header Block
+            org.apache.poi.ss.usermodel.Row titleRow = sheet.createRow(rowNum++);
+            org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("TEST RUN REPORT: " + report.getRunName());
+            titleCell.setCellStyle(headerStyle);
+
+            rowNum++; // blank row
+
+            String[][] summaryData = {
+                    {"Project:", report.getProjectName()},
+                    {"Milestone:", report.getMilestoneName()},
+                    {"Status:", report.getRunStatus().name()},
+                    {"Total Cases:", String.valueOf(report.getTotalCases())},
+                    {"Passed:", String.valueOf(report.getPassedCases())},
+                    {"Failed:", String.valueOf(report.getFailedCases())},
+                    {"Blocked:", String.valueOf(report.getBlockedCases())},
+                    {"Retest:", String.valueOf(report.getRetestCases())},
+                    {"Untested:", String.valueOf(report.getUntestedCases())},
+                    {"Pass Rate:", report.getPassRatePercentage() + "%"},
+                    {"Completion Rate:", report.getCompletionPercentage() + "%"}
+            };
+
+            for (String[] pair : summaryData) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                org.apache.poi.ss.usermodel.Cell kCell = row.createCell(0);
+                kCell.setCellValue(pair[0]);
+                kCell.setCellStyle(headerStyle);
+                org.apache.poi.ss.usermodel.Cell vCell = row.createCell(1);
+                vCell.setCellValue(pair[1]);
+                vCell.setCellStyle(normalStyle);
+            }
+
+            rowNum++; // blank row
+
+            // Details Table Header
+            String[] headers = {"Case Code", "Title", "Assigned To", "Result Status", "Executed By", "Executed At", "Comment", "Defect Ref"};
+            org.apache.poi.ss.usermodel.Row tableHeaderRow = sheet.createRow(rowNum++);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = tableHeaderRow.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+            }
+
+            // Details Table Data
+            for (TestRunCaseReportDto tc : report.getCases()) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(tc.getCode());
+                row.createCell(1).setCellValue(tc.getTitle() != null ? tc.getTitle() : "");
+                row.createCell(2).setCellValue(tc.getAssignedToName() != null ? tc.getAssignedToName() : "");
+                row.createCell(3).setCellValue(tc.getResultStatus() != null ? tc.getResultStatus().name() : "");
+                row.createCell(4).setCellValue(tc.getExecutedBy() != null ? tc.getExecutedBy() : "");
+                row.createCell(5).setCellValue(tc.getExecutedAt() != null ? tc.getExecutedAt().toString() : "");
+                row.createCell(6).setCellValue(tc.getComment() != null ? tc.getComment() : "");
+                row.createCell(7).setCellValue(tc.getDefectRef() != null ? tc.getDefectRef() : "");
+
+                for (int i = 0; i < headers.length; i++) {
+                    row.getCell(i).setCellStyle(normalStyle);
+                }
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to export Test Run report to Excel", e);
+        }
+    }
 }

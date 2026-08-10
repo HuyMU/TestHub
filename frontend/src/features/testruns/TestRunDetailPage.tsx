@@ -29,6 +29,8 @@ import {
   HistoryOutlined,
   FileOutlined,
   PaperClipOutlined,
+  FileExcelOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '../../components/PageHeader';
 import { TestRunCase } from '../../types';
@@ -38,6 +40,7 @@ import * as testRunApi from './testRunApi';
 import * as executionApi from '../execution/executionApi';
 import { ExecuteResultModal } from '../execution/ExecuteResultModal';
 import { ReviewResultModal } from '../execution/ReviewResultModal';
+import { Modal } from 'antd';
 
 const { Text, Paragraph } = Typography;
 
@@ -62,11 +65,44 @@ export const TestRunDetailPage: React.FC = () => {
   const [histories, setHistories] = useState<Record<number, executionApi.ExecutionHistoryItem[]>>({});
   const [loadingHistory, setLoadingHistory] = useState<Record<number, boolean>>({});
 
+  // Report state
+  const [exportingReport, setExportingReport] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportData, setReportData] = useState<testRunApi.TestRunReport | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
   useEffect(() => {
     if (runId) {
       fetchRunDetail(Number(runId));
     }
   }, [runId]);
+
+  const handleExportReport = async () => {
+    if (!currentRun) return;
+    setExportingReport(true);
+    try {
+      await testRunApi.exportTestRunReport(currentRun.id, currentRun.name);
+      message.success('Test Run report exported successfully');
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Failed to export report');
+    } finally {
+      setExportingReport(false);
+    }
+  };
+
+  const handleOpenReportModal = async () => {
+    if (!currentRun) return;
+    setReportModalOpen(true);
+    setLoadingReport(true);
+    try {
+      const data = await testRunApi.getTestRunReport(currentRun.id);
+      setReportData(data);
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Failed to generate report');
+    } finally {
+      setLoadingReport(false);
+    }
+  };
 
   const handleCloseRun = async () => {
     if (!currentRun) return;
@@ -281,19 +317,34 @@ export const TestRunDetailPage: React.FC = () => {
           </Space>
         }
         extra={
-          isLeader && currentRun?.status === 'OPEN' ? (
-            <Popconfirm
-              title="Close Test Run"
-              description="Are you sure you want to close this Test Run? No further case modifications will be allowed."
-              onConfirm={handleCloseRun}
-              okText="Close Run"
-              cancelText="Cancel"
+          <Space>
+            <Button
+              icon={<FileTextOutlined />}
+              onClick={handleOpenReportModal}
             >
-              <Button type="primary" danger icon={<LockOutlined />} loading={closing}>
-                Close Run
-              </Button>
-            </Popconfirm>
-          ) : null
+              View Report
+            </Button>
+            <Button
+              icon={<FileExcelOutlined />}
+              loading={exportingReport}
+              onClick={handleExportReport}
+            >
+              Export Excel
+            </Button>
+            {isLeader && currentRun?.status === 'OPEN' ? (
+              <Popconfirm
+                title="Close Test Run"
+                description="Are you sure you want to close this Test Run? No further case modifications will be allowed."
+                onConfirm={handleCloseRun}
+                okText="Close Run"
+                cancelText="Cancel"
+              >
+                <Button type="primary" danger icon={<LockOutlined />} loading={closing}>
+                  Close Run
+                </Button>
+              </Popconfirm>
+            ) : null}
+          </Space>
         }
       />
 
@@ -457,6 +508,72 @@ export const TestRunDetailPage: React.FC = () => {
           }}
         />
       )}
+
+      {/* Test Run Detailed Report Modal */}
+      <Modal
+        title={`Execution Report: ${currentRun?.name}`}
+        open={reportModalOpen}
+        onCancel={() => setReportModalOpen(false)}
+        width={900}
+        footer={[
+          <Button key="close" onClick={() => setReportModalOpen(false)}>
+            Close
+          </Button>,
+          <Button
+            key="export"
+            type="primary"
+            icon={<FileExcelOutlined />}
+            loading={exportingReport}
+            onClick={handleExportReport}
+          >
+            Export Excel Report
+          </Button>,
+        ]}
+      >
+        {loadingReport || !reportData ? (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>Generating report summary...</div>
+        ) : (
+          <div>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Paragraph><strong>Project:</strong> {reportData.projectName}</Paragraph>
+                <Paragraph><strong>Milestone:</strong> {reportData.milestoneName}</Paragraph>
+                <Paragraph><strong>Status:</strong> <Tag color={reportData.runStatus === 'OPEN' ? 'green' : 'default'}>{reportData.runStatus}</Tag></Paragraph>
+              </Col>
+              <Col span={12}>
+                <Paragraph><strong>Pass Rate:</strong> <Text type="success" strong>{reportData.passRatePercentage}%</Text></Paragraph>
+                <Paragraph><strong>Completion:</strong> <Text strong style={{ color: '#1890ff' }}>{reportData.completionPercentage}%</Text></Paragraph>
+                <Paragraph><strong>Closed At:</strong> {reportData.closedAt ? new Date(reportData.closedAt).toLocaleString() : 'Open'}</Paragraph>
+              </Col>
+            </Row>
+
+            <Table
+              size="small"
+              rowKey="caseId"
+              pagination={{ pageSize: 5 }}
+              style={{ marginTop: 16 }}
+              dataSource={reportData.cases}
+              columns={[
+                { title: 'Code', dataIndex: 'code', key: 'code', width: 90 },
+                { title: 'Title', dataIndex: 'title', key: 'title', ellipsis: true },
+                { title: 'Assigned To', dataIndex: 'assignedToName', key: 'assignedToName', width: 130 },
+                {
+                  title: 'Result',
+                  dataIndex: 'resultStatus',
+                  key: 'resultStatus',
+                  width: 100,
+                  render: (val: string) => {
+                    const color = val === 'PASSED' ? 'green' : val === 'FAILED' ? 'red' : val === 'BLOCKED' ? 'orange' : val === 'RETEST' ? 'purple' : 'default';
+                    return <Tag color={color}>{val}</Tag>;
+                  },
+                },
+                { title: 'Executed By', dataIndex: 'executedBy', key: 'executedBy', width: 120 },
+                { title: 'Comment', dataIndex: 'comment', key: 'comment', ellipsis: true },
+              ]}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

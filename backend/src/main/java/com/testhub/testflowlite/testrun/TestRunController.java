@@ -79,4 +79,27 @@ public class TestRunController {
             @AuthenticationPrincipal UserDetails userDetails) {
         return ApiResponse.success("Test Run closed successfully", testRunService.closeTestRun(id, userDetails.getUsername()));
     }
+
+    @GetMapping("/api/runs/{id}/report")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get detailed Test Run execution report (FR-31)")
+    public ApiResponse<TestRunReportDto> getTestRunReport(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        TestRunReportDto report = testRunService.generateReport(id, userDetails.getUsername());
+        return ApiResponse.success("Test Run report generated successfully", report);
+    }
+
+    @GetMapping("/api/runs/{id}/report/export")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Export detailed Test Run report to formatted Excel sheet (FR-31)")
+    public org.springframework.http.ResponseEntity<byte[]> exportTestRunReport(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        byte[] excelContent = testRunService.exportReportToExcel(id, userDetails.getUsername());
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=TestRun_Report_" + id + ".xlsx")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelContent);
+    }
 }
