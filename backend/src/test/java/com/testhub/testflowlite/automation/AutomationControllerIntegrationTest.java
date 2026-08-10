@@ -280,6 +280,7 @@ class AutomationControllerIntegrationTest {
         List<ExecutionHistory> histories = executionHistoryRepository.findByRunCaseIdOrderByExecutedAtDesc(updatedCase.getId());
         assertEquals(1, histories.size());
         assertEquals(ResultStatus.PASSED, histories.get(0).getResultStatus());
+        assertEquals(1500L, histories.get(0).getDurationMs());
         assertEquals("Automation (token #" + validToken.getId() + ")", histories.get(0).getExecutedBy());
 
         // 3. Verify lastUsedAt updated on API token

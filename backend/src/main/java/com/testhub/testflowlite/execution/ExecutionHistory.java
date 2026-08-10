@@ -28,6 +28,9 @@ public class ExecutionHistory {
     @Column(name = "result_status", nullable = false, length = 20)
     private ResultStatus resultStatus;
 
+    @Column(name = "duration_ms")
+    private Long durationMs;
+
     @Column(columnDefinition = "TEXT")
     private String comment;
 

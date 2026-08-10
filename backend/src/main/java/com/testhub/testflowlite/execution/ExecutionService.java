@@ -136,6 +136,7 @@ public class ExecutionService {
                     h.getComment(),
                     h.getExecutedBy(),
                     h.getExecutedAt(),
+                    h.getDurationMs(),
                     attachments
             );
         }).collect(Collectors.toList());

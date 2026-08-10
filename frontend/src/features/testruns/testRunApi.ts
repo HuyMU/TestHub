@@ -14,21 +14,21 @@ export interface CreateTestRunPayload {
 }
 
 export const getTestRuns = async (projectId: number): Promise<TestRun[]> => {
-  const response = await axiosClient.get(`/projects/${projectId}/runs`);
-  return response.data.data;
+  const response: any = await axiosClient.get(`/projects/${projectId}/runs`);
+  return response.data;
 };
 
 export const getTestRunDetail = async (runId: number): Promise<TestRun> => {
-  const response = await axiosClient.get(`/runs/${runId}`);
-  return response.data.data;
+  const response: any = await axiosClient.get(`/runs/${runId}`);
+  return response.data;
 };
 
 export const createTestRun = async (
   projectId: number,
   data: CreateTestRunPayload
 ): Promise<TestRun> => {
-  const response = await axiosClient.post(`/projects/${projectId}/runs`, data);
-  return response.data.data;
+  const response: any = await axiosClient.post(`/projects/${projectId}/runs`, data);
+  return response.data;
 };
 
 export const addCasesToRun = async (
@@ -36,11 +36,11 @@ export const addCasesToRun = async (
   cases: RunCaseItemPayload[],
   includeNonReady?: boolean
 ): Promise<TestRun> => {
-  const response = await axiosClient.post(`/runs/${runId}/cases`, {
+  const response: any = await axiosClient.post(`/runs/${runId}/cases`, {
     includeNonReady,
     cases,
   });
-  return response.data.data;
+  return response.data;
 };
 
 export const removeCaseFromRun = async (runId: number, runCaseId: number): Promise<void> => {
@@ -48,6 +48,6 @@ export const removeCaseFromRun = async (runId: number, runCaseId: number): Promi
 };
 
 export const closeTestRun = async (runId: number): Promise<TestRun> => {
-  const response = await axiosClient.post(`/runs/${runId}/close`);
-  return response.data.data;
+  const response: any = await axiosClient.post(`/runs/${runId}/close`);
+  return response.data;
 };

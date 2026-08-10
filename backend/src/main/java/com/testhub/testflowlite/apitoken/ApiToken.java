@@ -23,7 +23,7 @@ public class ApiToken {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
-    @Column(name = "token_hash", nullable = false, length = 64, unique = true)
+    @Column(name = "token_hash", nullable = false, length = 255, unique = true)
     private String tokenHash;
 
     @Column(name = "created_at", nullable = false)

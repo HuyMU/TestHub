@@ -19,14 +19,14 @@ public class ExecutionHistoryDto {
     private String comment;
     private String executedBy;
     private LocalDateTime executedAt;
+    private Long durationMs;
     private List<AttachmentDto> attachments;
 
     public ExecutionHistoryDto(Long id, Long runCaseId, ResultStatus resultStatus, String comment, String executedBy, LocalDateTime executedAt) {
-        this.id = id;
-        this.runCaseId = runCaseId;
-        this.resultStatus = resultStatus;
-        this.comment = comment;
-        this.executedBy = executedBy;
-        this.executedAt = executedAt;
+        this(id, runCaseId, resultStatus, comment, executedBy, executedAt, null, null);
+    }
+
+    public ExecutionHistoryDto(Long id, Long runCaseId, ResultStatus resultStatus, String comment, String executedBy, LocalDateTime executedAt, Long durationMs) {
+        this(id, runCaseId, resultStatus, comment, executedBy, executedAt, durationMs, null);
     }
 }

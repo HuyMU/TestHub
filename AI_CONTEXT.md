@@ -74,7 +74,7 @@ erDiagram
 6. `milestones`: `id`, `project_id`, `name`, `due_date`, `status` (`Open`/`Closed`), `created_by`, `created_at`
 7. `test_runs`: `id`, `project_id`, `milestone_id` (nullable), `name`, `status` (`Open`/`Closed`), `created_by`, `created_at`, `closed_at`
 8. `test_run_cases`: `id`, `run_id`, `case_id`, `title`, `precondition`, `steps`, `expected_result`, `test_data` *(Snapshotted from test_cases at time of adding to run; point-in-time immutable copy. Execution & report read from snapshot.)*, `assigned_to`, `result_status` (`PASSED`/`FAILED`/`BLOCKED`/`RETEST`/`UNTESTED`), `executed_by`, `executed_at`, `comment`, `defect_ref`, `is_reviewed`, `reviewed_by`, `reviewed_at`, `review_comment`
-9. `execution_history`: `id`, `run_case_id`, `result_status`, `comment`, `executed_by`, `executed_at`
+9. `execution_history`: `id`, `run_case_id`, `result_status`, `duration_ms` (nullable BIGINT), `comment`, `executed_by`, `executed_at`
 10. `attachments`: `id`, `entity_type`, `entity_id`, `file_path`, `uploaded_by`, `uploaded_at`
 11. `api_tokens`: `id`, `created_by`, `token_hash` (SHA-256), `revoked_at` (nullable), `created_at`, `last_used_at`
 12. `audit_logs`: `id`, `user_id`, `action`, `entity_type`, `entity_id`, `detail_json`, `created_at`

@@ -2,6 +2,7 @@ package com.testhub.testflowlite.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.testhub.testflowlite.common.Role;
+import com.testhub.testflowlite.security.JwtTokenProvider;
 import com.testhub.testflowlite.user.User;
 import com.testhub.testflowlite.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,20 +53,25 @@ class AuthControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
     private ObjectMapper objectMapper;
+
+    private User leader;
 
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
 
-        User leader = new User();
+        leader = new User();
         leader.setUsername("leader");
         leader.setEmail("leader@testhub.com");
         leader.setPasswordHash(passwordEncoder.encode("Leader@123456"));
         leader.setFullName("System Leader");
         leader.setRole(Role.LEADER);
         leader.setIsActive(true);
-        userRepository.save(leader);
+        leader = userRepository.save(leader);
     }
 
     @Test
@@ -113,5 +120,24 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Account is disabled"));
+    }
+
+    @Test
+    void testDeactivatedUser_TokenRejected() throws Exception {
+        String token = jwtTokenProvider.generateAccessToken(leader.getUsername(), leader.getRole().name());
+
+        // Verify active user works -> 200 OK
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        // Deactivate user in database
+        leader.setIsActive(false);
+        userRepository.save(leader);
+
+        // Verify existing JWT token now yields 401 Unauthorized
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
     }
 }

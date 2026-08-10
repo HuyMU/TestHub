@@ -25,6 +25,7 @@ export interface ExecutionHistoryItem {
   comment?: string;
   executedBy?: string;
   executedAt: string;
+  durationMs?: number;
   attachments?: AttachmentDto[];
 }
 
@@ -33,8 +34,8 @@ export const recordExecution = async (
   caseId: number,
   payload: ExecutionPayload
 ): Promise<TestRunCase> => {
-  const response = await axiosClient.post(`/runs/${runId}/cases/${caseId}/execute`, payload);
-  return response.data.data;
+  const response: any = await axiosClient.post(`/runs/${runId}/cases/${caseId}/execute`, payload);
+  return response.data;
 };
 
 export const reviewResult = async (
@@ -43,10 +44,10 @@ export const reviewResult = async (
   reviewed: boolean,
   comment?: string
 ): Promise<TestRunCase> => {
-  const response = await axiosClient.post(`/runs/${runId}/cases/${caseId}/review`, null, {
+  const response: any = await axiosClient.post(`/runs/${runId}/cases/${caseId}/review`, null, {
     params: { reviewed, comment },
   });
-  return response.data.data;
+  return response.data;
 };
 
 export const uploadAttachment = async (
@@ -59,32 +60,32 @@ export const uploadAttachment = async (
   formData.append('entityId', String(entityId));
   formData.append('file', file);
 
-  const response = await axiosClient.post('/attachments/upload', formData, {
+  const response: any = await axiosClient.post('/attachments/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response.data.data;
+  return response.data;
 };
 
 export const getExecutionHistory = async (
   runId: number,
   caseId: number
 ): Promise<ExecutionHistoryItem[]> => {
-  const response = await axiosClient.get(`/runs/${runId}/cases/${caseId}/history`);
-  return response.data.data;
+  const response: any = await axiosClient.get(`/runs/${runId}/cases/${caseId}/history`);
+  return response.data;
 };
 
 export const getExecutionAttachments = async (
   executionHistoryId: number
 ): Promise<AttachmentDto[]> => {
-  const response = await axiosClient.get(`/executions/${executionHistoryId}/attachments`);
-  return response.data.data;
+  const response: any = await axiosClient.get(`/executions/${executionHistoryId}/attachments`);
+  return response.data;
 };
 
 export const fetchAttachmentBlob = async (downloadUrl: string): Promise<string> => {
-  const response = await axiosClient.get(downloadUrl, {
+  const response: any = await axiosClient.get(downloadUrl, {
     responseType: 'blob',
   });
-  return URL.createObjectURL(response.data);
+  return URL.createObjectURL(response.data || response);
 };

@@ -1,5 +1,4 @@
 import axiosClient from '../../api/axiosClient';
-import { ApiResponse } from '../../types';
 
 export interface ApiTokenDto {
   id: number;
@@ -16,15 +15,15 @@ export interface ApiTokenCreatedDto {
 }
 
 export const listTokens = async (): Promise<ApiTokenDto[]> => {
-  const response = await axiosClient.get<ApiResponse<ApiTokenDto[]>>('/api/tokens');
-  return response.data.data;
+  const response: any = await axiosClient.get('/tokens');
+  return response.data;
 };
 
 export const generateToken = async (): Promise<ApiTokenCreatedDto> => {
-  const response = await axiosClient.post<ApiResponse<ApiTokenCreatedDto>>('/api/tokens');
-  return response.data.data;
+  const response: any = await axiosClient.post('/tokens');
+  return response.data;
 };
 
 export const revokeToken = async (id: number): Promise<void> => {
-  await axiosClient.delete<ApiResponse<void>>(`/api/tokens/${id}`);
+  await axiosClient.delete(`/tokens/${id}`);
 };

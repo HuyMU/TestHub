@@ -35,7 +35,7 @@ export const validateImport = async (
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await axiosClient.post(
+  const response: any = await axiosClient.post(
     `/projects/${projectId}/cases/import/validate`,
     formData,
     {
@@ -44,25 +44,25 @@ export const validateImport = async (
       },
     }
   );
-  return response.data.data;
+  return response.data;
 };
 
 export const confirmImport = async (
   projectId: number,
   importSessionId: string
 ): Promise<ExcelImportConfirmResponse> => {
-  const response = await axiosClient.post(`/projects/${projectId}/cases/import/confirm`, {
+  const response: any = await axiosClient.post(`/projects/${projectId}/cases/import/confirm`, {
     importSessionId,
   });
-  return response.data.data;
+  return response.data;
 };
 
 export const downloadTemplate = async (projectId: number): Promise<void> => {
-  const response = await axiosClient.get(`/projects/${projectId}/cases/import/template`, {
+  const response: any = await axiosClient.get(`/projects/${projectId}/cases/import/template`, {
     responseType: 'blob',
   });
 
-  const blob = new Blob([response.data], {
+  const blob = new Blob([response.data || response], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = window.URL.createObjectURL(blob);
@@ -83,12 +83,12 @@ export const exportCases = async (
     params.sectionIds = sectionIds.join(',');
   }
 
-  const response = await axiosClient.get(`/projects/${projectId}/cases/export`, {
+  const response: any = await axiosClient.get(`/projects/${projectId}/cases/export`, {
     params,
     responseType: 'blob',
   });
 
-  const blob = new Blob([response.data], {
+  const blob = new Blob([response.data || response], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = window.URL.createObjectURL(blob);

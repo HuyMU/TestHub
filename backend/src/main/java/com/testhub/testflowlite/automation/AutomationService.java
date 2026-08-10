@@ -93,6 +93,7 @@ public class AutomationService {
         ExecutionHistory history = new ExecutionHistory();
         history.setRunCase(runCase);
         history.setResultStatus(statusToSet);
+        history.setDurationMs(dto.getDurationMs());
         history.setComment(dto.getMessage());
         history.setExecutedBy(executedByStr);
         history.setExecutedAt(execTime);
