@@ -11,7 +11,6 @@ export interface AttachmentDto {
   id: number;
   entityType: string;
   entityId: number;
-  filePath: string;
   fileName: string;
   downloadUrl: string;
   uploadedById?: number;

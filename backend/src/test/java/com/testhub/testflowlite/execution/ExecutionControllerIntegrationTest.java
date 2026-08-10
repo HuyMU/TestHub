@@ -1,7 +1,6 @@
 package com.testhub.testflowlite.execution;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.testhub.testflowlite.attachment.AttachmentDto;
 import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
 import com.testhub.testflowlite.project.ProjectMember;
@@ -397,7 +396,7 @@ class ExecutionControllerIntegrationTest {
                         .header("Authorization", "Bearer " + assignedTesterToken))
                 .andExpect(status().isBadRequest());
 
-        // Valid image upload -> 200 OK, returns AttachmentDto with downloadUrl
+        // Valid image upload -> 200 OK, returns AttachmentDto without filePath
         MockMultipartFile imageFile = new MockMultipartFile("file", "screenshot.png", "image/png", new byte[]{1, 2, 3});
         MvcResult uploadResult = mockMvc.perform(multipart("/api/attachments/upload")
                         .file(imageFile)
@@ -406,16 +405,18 @@ class ExecutionControllerIntegrationTest {
                         .header("Authorization", "Bearer " + assignedTesterToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.downloadUrl", notNullValue()))
+                .andExpect(jsonPath("$.data.filePath").doesNotExist())
                 .andReturn();
 
         Long attachmentId = objectMapper.readTree(uploadResult.getResponse().getContentAsString()).get("data").get("id").asLong();
 
-        // 2. GET /api/executions/{historyId}/attachments -> returns attachment list
+        // 2. GET /api/executions/{historyId}/attachments as project member -> 200 OK
         mockMvc.perform(get("/api/executions/" + historyId + "/attachments")
                         .header("Authorization", "Bearer " + assignedTesterToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)))
-                .andExpect(jsonPath("$.data[0].id").value(attachmentId));
+                .andExpect(jsonPath("$.data[0].id").value(attachmentId))
+                .andExpect(jsonPath("$.data[0].filePath").doesNotExist());
 
         // 3. GET /api/attachments/{id}/file as Project Member -> 200 OK
         mockMvc.perform(get("/api/attachments/" + attachmentId + "/file")
@@ -435,6 +436,49 @@ class ExecutionControllerIntegrationTest {
         // 6. Direct public request to /uploads/{path} -> blocked (401 / 403)
         mockMvc.perform(get("/uploads/EXECUTION_HISTORY/" + historyId + "/screenshot.png"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testIdorSecurityGuardsOnExecutionEndpoints() throws Exception {
+        // Execute to create a history entry in Project
+        ExecutionDto dto = new ExecutionDto();
+        dto.setResultStatus(ResultStatus.PASSED);
+        MvcResult execResult = mockMvc.perform(post("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/execute")
+                        .header("Authorization", "Bearer " + assignedTesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String execResponseBody = execResult.getResponse().getContentAsString();
+        Long historyId = objectMapper.readTree(execResponseBody).get("data").get("latestExecutionHistoryId").asLong();
+
+        // 1. External tester calling GET /api/executions/{historyId}/attachments -> 403 Forbidden
+        mockMvc.perform(get("/api/executions/" + historyId + "/attachments")
+                        .header("Authorization", "Bearer " + externalTesterToken))
+                .andExpect(status().isForbidden());
+
+        // 2. External tester calling GET /api/runs/{runId}/cases/{caseId}/history -> 403 Forbidden
+        mockMvc.perform(get("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/history")
+                        .header("Authorization", "Bearer " + externalTesterToken))
+                .andExpect(status().isForbidden());
+
+        // 3. Project member calling GET /api/runs/{runId}/cases/{caseId}/history -> 200 OK
+        mockMvc.perform(get("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/history")
+                        .header("Authorization", "Bearer " + assignedTesterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)));
+
+        // 4. Leader calling GET /api/runs/{runId}/cases/{caseId}/history -> 200 OK
+        mockMvc.perform(get("/api/runs/" + openRun.getId() + "/cases/" + testCase.getId() + "/history")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)));
+
+        // 5. Leader calling GET /api/executions/{historyId}/attachments -> 200 OK
+        mockMvc.perform(get("/api/executions/" + historyId + "/attachments")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk());
     }
 
     @Test

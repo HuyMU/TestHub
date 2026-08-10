@@ -13,7 +13,6 @@ public class AttachmentDto {
     private Long id;
     private String entityType;
     private Long entityId;
-    private String filePath;
     private String fileName;
     private String downloadUrl;
     private Long uploadedById;

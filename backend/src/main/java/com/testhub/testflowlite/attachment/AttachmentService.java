@@ -148,7 +148,6 @@ public class AttachmentService {
                 a.getId(),
                 a.getEntityType(),
                 a.getEntityId(),
-                a.getFilePath(),
                 fileName,
                 downloadUrl,
                 a.getUploadedBy() != null ? a.getUploadedBy().getId() : null,
