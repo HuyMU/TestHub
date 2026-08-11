@@ -44,19 +44,19 @@ public class TestCase extends BaseEntity {
     private String testData;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     private Priority priority = Priority.MEDIUM;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, columnDefinition = "VARCHAR(30)")
     private TestCaseType type = TestCaseType.FUNCTIONAL;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "automation_status", nullable = false, length = 20)
+    @Column(name = "automation_status", nullable = false, columnDefinition = "VARCHAR(20)")
     private AutomationStatus automationStatus = AutomationStatus.MANUAL;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     private TestCaseStatus status = TestCaseStatus.DRAFT;
 
     @Column(name = "review_comment", columnDefinition = "TEXT")

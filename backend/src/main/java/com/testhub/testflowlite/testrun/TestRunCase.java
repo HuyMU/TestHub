@@ -47,7 +47,7 @@ public class TestRunCase {
     private User assignedTo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "result_status", nullable = false, length = 20)
+    @Column(name = "result_status", nullable = false, columnDefinition = "VARCHAR(20)")
     private ResultStatus resultStatus = ResultStatus.UNTESTED;
 
     @Column(name = "executed_by", length = 100)

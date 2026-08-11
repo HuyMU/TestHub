@@ -25,7 +25,7 @@ public class ExecutionHistory {
     private TestRunCase runCase;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "result_status", nullable = false, length = 20)
+    @Column(name = "result_status", nullable = false, columnDefinition = "VARCHAR(20)")
     private ResultStatus resultStatus;
 
     @Column(name = "duration_ms")

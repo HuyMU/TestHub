@@ -31,7 +31,7 @@ public class User extends BaseEntity {
     private String fullName;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     private Role role;
 
     @Column(name = "is_active", nullable = false)
