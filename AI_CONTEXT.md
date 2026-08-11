@@ -66,11 +66,11 @@ erDiagram
 
 ### 3.2 Database Table Schema Summary
 
-1. `users`: `id`, `username`, `email`, `password_hash`, `full_name`, `role` (`LEADER`/`TESTER`), `is_active`, `created_at`
-2. `projects`: `id`, `name`, `description`, `status` (`Active`/`Archived`), `created_by`, `created_at`
+1. `users`: `id`, `username`, `email`, `password_hash`, `full_name`, `role` (`LEADER`/`TESTER`), `is_active`, `created_at`, `updated_at`
+2. `projects`: `id`, `name`, `description`, `status` (`Active`/`Archived`), `created_by`, `created_at`, `updated_at`
 3. `project_members`: `id`, `project_id`, `user_id`
-4. `sections`: `id`, `project_id`, `parent_section_id` (self-reference), `name`, `sort_order` *(Deletion blocked with 409 Conflict if has child subsections or test cases. Edit permitted for any assigned Tester; delete Leader-only.)*
-5. `test_cases`: `id`, `code` (e.g. `TC-0001`), `section_id`, `title`, `precondition`, `steps`, `expected_result`, `test_data`, `priority`, `type`, `automation_status`, `status` (`Draft`/`Review`/`Ready`), `review_comment`, `created_by`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at`
+4. `sections`: `id`, `project_id`, `parent_section_id` (self-reference), `name`, `sort_order`, `created_at`, `updated_at` *(Deletion blocked with 409 Conflict if has child subsections or test cases. Edit permitted for any assigned Tester; delete Leader-only.)*
+5. `test_cases`: `id`, `code` (e.g. `TC-0001`, nullable pending 2-phase code generation), `section_id`, `title`, `precondition`, `steps`, `expected_result`, `test_data`, `priority`, `type`, `automation_status`, `status` (`Draft`/`Review`/`Ready`), `review_comment`, `created_by`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at`
 6. `milestones`: `id`, `project_id`, `name`, `due_date`, `status` (`Open`/`Closed`), `created_by`, `created_at`
 7. `test_runs`: `id`, `project_id`, `milestone_id` (nullable), `name`, `status` (`Open`/`Closed`), `created_by`, `created_at`, `closed_at`
 8. `test_run_cases`: `id`, `run_id`, `case_id`, `title`, `precondition`, `steps`, `expected_result`, `test_data` *(Snapshotted from test_cases at time of adding to run; point-in-time immutable copy. Execution & report read from snapshot.)*, `assigned_to`, `result_status` (`PASSED`/`FAILED`/`BLOCKED`/`RETEST`/`UNTESTED`), `executed_by`, `executed_at`, `comment`, `defect_ref`, `is_reviewed`, `reviewed_by`, `reviewed_at`, `review_comment`
