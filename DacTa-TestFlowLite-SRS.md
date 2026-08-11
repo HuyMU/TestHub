@@ -1,13 +1,14 @@
 # ĐẶC TẢ YÊU CẦU PHẦN MỀM (SRS)
 ## Dự án: TestFlow Lite — Hệ thống quản lý & thực thi Test Case
 
-**Phiên bản:** 3.1
+**Phiên bản:** 3.2
 **Loại dự án:** Cá nhân (Personal Project)
 **Đối tượng sử dụng:** Nhóm nhỏ dưới 10 người
 
 ### Changelog
 | Version | Thay đổi chính |
 |---|---|
+| **v3.2** | Redesign Import Section Hierarchy: cột A "Section Path" chứa đường dẫn đầy đủ từ root Section (không phụ thuộc tên sheet). Tương thích ngược với file legacy ("Subsection Path"). Cột A rỗng → tự vào root Section "Uncategorized". Nút Add Test Case bị disable khi Project chưa có Section. |
 | **v3.1** | Đổi thiết kế Import/Export Excel: 1 sheet duy nhất → sheet-per-root-section, cột "Section Path" (dấu `/`) → "Subsection Path" (dấu `>`), để phù hợp thực tế triển khai và dễ export theo từng Section lớn. |
 | **v3.0** | Bỏ hẳn **Test Plan**; **Milestone** quay lại MVP dạng nhãn đơn giản; Ngôn ngữ mặc định **English**; Đổi **Folder → Section / Subsection**; **Tester được phép Import Excel**; Thêm **Test Data** & loại **Usability**; Đơn giản hóa trạng thái Test Case (**Draft / Review / Ready**); Hệ thống chỉ có **1 Leader duy nhất**. |
 
@@ -240,7 +241,7 @@ Mỗi worksheet (sheet) trong file `.xlsx` đại diện cho **1 Section gốc (
 
 | Cột | Tên Cột | Bắt buộc | Kiểu dữ liệu | Ghi chú |
 |---|---|:---:|---|---|
-| A | Subsection Path | ❌ | Text | Phân cấp bằng `>` (VD: `Parent > Child > Grandchild`). Rỗng = thuộc trực tiếp root Section |
+| A | Section Path | ❌ | Text | Đường dẫn phân cấp đầy đủ tính từ root Section bằng `>` (VD: `Payment > Checkout > Validation`). Rỗng = thuộc root Section `Uncategorized`. Tên sheet chỉ để tổ chức nội bộ |
 | B | Title | ✅ | Text | Tiêu đề Test Case |
 | C | Precondition | ✅ | Text | Điều kiện tiên quyết |
 | D | Steps | ✅ | Text | Các bước thực hiện multi-line với đánh số linh hoạt (`1.`, `Step 1:`) |
@@ -250,7 +251,7 @@ Mỗi worksheet (sheet) trong file `.xlsx` đại diện cho **1 Section gốc (
 | H | Type | ❌ | Enum | `Functional` / `Regression` / `Smoke` / `Performance` / `Security` / `Usability` / `Other` (Mặc định: `Functional`) |
 | I | Automation Status | ❌ | Enum | `Manual` / `Automated` / `To Automate` (Mặc định: `Manual`) |
 
-> Tất cả Test Case khi import vào đều tự động ở trạng thái **Draft** — áp dụng cho cả Leader và Tester. Section hoặc Subsection chưa tồn tại sẽ được hệ thống tự động khởi tạo khi Confirm Import.
+> Tất cả Test Case khi import vào đều tự động ở trạng thái **Draft** — áp dụng cho cả Leader và Tester. Section hoặc Subsection chưa tồn tại sẽ được hệ thống tự động khởi tạo khi Confirm Import. Nếu ô A0 mang tiêu đề "Subsection Path" (Legacy Mode), hệ thống tự chuyển sang chế độ phân cấp tương đối theo tên sheet.
 
 ### 8.2 Quy trình Import (2 bước)
 1. **Validate/Preview** (`POST /api/projects/{projectId}/cases/import/validate`): Kiểm tra định dạng text, required fields, enum hợp lệ và tương ứng bước số. Trả về `importSessionId` và danh sách preview lỗi dòng — chưa ghi DB.

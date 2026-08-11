@@ -315,9 +315,17 @@ export const TestCaseList: React.FC<TestCaseListProps> = ({ projectId, sections,
               <Button icon={<DownloadOutlined />} onClick={() => setExportModalOpen(true)}>
                 Export Excel
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateOpen}>
-                Add Test Case
-              </Button>
+              {sections.length === 0 ? (
+                <Tooltip title="Create a Section first before adding Test Cases">
+                  <Button type="primary" icon={<PlusOutlined />} disabled>
+                    Add Test Case
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateOpen}>
+                  Add Test Case
+                </Button>
+              )}
             </Space>
           </Col>
         </Row>

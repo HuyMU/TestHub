@@ -295,7 +295,7 @@ class ExcelControllerIntegrationTest {
             assertEquals(1, wb.getNumberOfSheets());
             Sheet sheet = wb.getSheetAt(0);
             Row headerRow = sheet.getRow(0);
-            assertEquals("Subsection Path", headerRow.getCell(0).getStringCellValue());
+            assertEquals("Section Path", headerRow.getCell(0).getStringCellValue());
             assertEquals("Title", headerRow.getCell(1).getStringCellValue());
         }
     }
@@ -333,6 +333,248 @@ class ExcelControllerIntegrationTest {
         }
     }
 
+    @Test
+    void testConfirmImport_FullPathMode_MultipleSheetsSameSection() throws Exception {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet s1 = wb.createSheet("Tester A");
+            Row h1 = s1.createRow(0);
+            h1.createCell(0).setCellValue("Section Path");
+            h1.createCell(1).setCellValue("Title A");
+            h1.createCell(2).setCellValue("Pre A");
+            h1.createCell(3).setCellValue("1. Step 1");
+            h1.createCell(4).setCellValue("1. Res 1");
+
+            Row r1 = s1.createRow(1);
+            r1.createCell(0).setCellValue("Payment > Checkout");
+            r1.createCell(1).setCellValue("Case 1");
+            r1.createCell(2).setCellValue("Pre 1");
+            r1.createCell(3).setCellValue("1. Step 1");
+            r1.createCell(4).setCellValue("1. Res 1");
+
+            Sheet s2 = wb.createSheet("Tester B");
+            Row h2 = s2.createRow(0);
+            h2.createCell(0).setCellValue("Section Path");
+            h2.createCell(1).setCellValue("Title B");
+            h2.createCell(2).setCellValue("Pre B");
+            h2.createCell(3).setCellValue("1. Step 1");
+            h2.createCell(4).setCellValue("1. Res 1");
+
+            Row r2 = s2.createRow(1);
+            r2.createCell(0).setCellValue("Payment > Checkout");
+            r2.createCell(1).setCellValue("Case 2");
+            r2.createCell(2).setCellValue("Pre 2");
+            r2.createCell(3).setCellValue("1. Step 1");
+            r2.createCell(4).setCellValue("1. Res 1");
+
+            wb.write(out);
+            byte[] excelBytes = out.toByteArray();
+
+            MockMultipartFile file = new MockMultipartFile("file", "fullpath_same.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelBytes);
+
+            MvcResult validateResult = mockMvc.perform(multipart("/api/projects/" + project.getId() + "/cases/import/validate")
+                            .file(file)
+                            .header("Authorization", "Bearer " + testerToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String sessionId = objectMapper.readTree(validateResult.getResponse().getContentAsString()).get("data").get("importSessionId").asText();
+
+            mockMvc.perform(post("/api/projects/" + project.getId() + "/cases/import/confirm")
+                            .header("Authorization", "Bearer " + testerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ExcelImportConfirmRequest(sessionId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.createdCasesCount").value(2))
+                    .andExpect(jsonPath("$.data.createdSectionsCount").value(2)); // Payment (Root) -> Checkout
+
+            List<Section> sections = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+            assertEquals(2, sections.size());
+            Section paymentSec = sections.stream().filter(s -> s.getName().equals("Payment")).findFirst().orElseThrow();
+            Section checkoutSec = sections.stream().filter(s -> s.getName().equals("Checkout")).findFirst().orElseThrow();
+            assertEquals(paymentSec.getId(), checkoutSec.getParentSection().getId());
+
+            List<TestCase> cases = testCaseRepository.findAll();
+            assertEquals(2, cases.size());
+            assertTrue(cases.stream().allMatch(c -> c.getSection().getId().equals(checkoutSec.getId())));
+        }
+    }
+
+    @Test
+    void testConfirmImport_FullPathMode_EmptyPath_CreatesUncategorized() throws Exception {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("Tab 1");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Section Path");
+            header.createCell(1).setCellValue("Title");
+            header.createCell(2).setCellValue("Precondition");
+            header.createCell(3).setCellValue("Steps");
+            header.createCell(4).setCellValue("Expected Result");
+
+            Row r1 = sheet.createRow(1);
+            r1.createCell(0).setCellValue(""); // Empty Section Path
+            r1.createCell(1).setCellValue("Uncategorized Case");
+            r1.createCell(2).setCellValue("Pre");
+            r1.createCell(3).setCellValue("1. Step 1");
+            r1.createCell(4).setCellValue("1. Res 1");
+
+            wb.write(out);
+            byte[] excelBytes = out.toByteArray();
+
+            MockMultipartFile file = new MockMultipartFile("file", "uncategorized.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelBytes);
+
+            MvcResult validateResult = mockMvc.perform(multipart("/api/projects/" + project.getId() + "/cases/import/validate")
+                            .file(file)
+                            .header("Authorization", "Bearer " + testerToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String sessionId = objectMapper.readTree(validateResult.getResponse().getContentAsString()).get("data").get("importSessionId").asText();
+
+            mockMvc.perform(post("/api/projects/" + project.getId() + "/cases/import/confirm")
+                            .header("Authorization", "Bearer " + testerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ExcelImportConfirmRequest(sessionId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.createdCasesCount").value(1))
+                    .andExpect(jsonPath("$.data.createdSectionsCount").value(1));
+
+            List<Section> sections = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+            assertEquals(1, sections.size());
+            assertEquals("Uncategorized", sections.get(0).getName());
+            assertNull(sections.get(0).getParentSection());
+
+            List<TestCase> cases = testCaseRepository.findAll();
+            assertEquals(1, cases.size());
+            assertEquals("Uncategorized", cases.get(0).getSection().getName());
+        }
+    }
+
+    @Test
+    void testConfirmImport_MixedFile_LegacyAndFullPathSheets() throws Exception {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // Sheet 1: Legacy
+            Sheet s1 = wb.createSheet("Legacy Module");
+            Row h1 = s1.createRow(0);
+            h1.createCell(0).setCellValue("Subsection Path");
+            h1.createCell(1).setCellValue("Legacy Case");
+            h1.createCell(2).setCellValue("Pre 1");
+            h1.createCell(3).setCellValue("1. Step 1");
+            h1.createCell(4).setCellValue("1. Res 1");
+
+            Row r1 = s1.createRow(1);
+            r1.createCell(0).setCellValue("Child Sub");
+            r1.createCell(1).setCellValue("Legacy Case");
+            r1.createCell(2).setCellValue("Pre 1");
+            r1.createCell(3).setCellValue("1. Step 1");
+            r1.createCell(4).setCellValue("1. Res 1");
+
+            // Sheet 2: Full Path
+            Sheet s2 = wb.createSheet("Full Path Tab");
+            Row h2 = s2.createRow(0);
+            h2.createCell(0).setCellValue("Section Path");
+            h2.createCell(1).setCellValue("Full Path Case");
+            h2.createCell(2).setCellValue("Pre 2");
+            h2.createCell(3).setCellValue("1. Step 1");
+            h2.createCell(4).setCellValue("1. Res 1");
+
+            Row r2 = s2.createRow(1);
+            r2.createCell(0).setCellValue("Root Sec > Child Sec");
+            r2.createCell(1).setCellValue("Full Path Case");
+            r2.createCell(2).setCellValue("Pre 2");
+            r2.createCell(3).setCellValue("1. Step 1");
+            r2.createCell(4).setCellValue("1. Res 1");
+
+            wb.write(out);
+            byte[] excelBytes = out.toByteArray();
+
+            MockMultipartFile file = new MockMultipartFile("file", "mixed.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelBytes);
+
+            MvcResult validateResult = mockMvc.perform(multipart("/api/projects/" + project.getId() + "/cases/import/validate")
+                            .file(file)
+                            .header("Authorization", "Bearer " + testerToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String sessionId = objectMapper.readTree(validateResult.getResponse().getContentAsString()).get("data").get("importSessionId").asText();
+
+            mockMvc.perform(post("/api/projects/" + project.getId() + "/cases/import/confirm")
+                            .header("Authorization", "Bearer " + testerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ExcelImportConfirmRequest(sessionId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.createdCasesCount").value(2))
+                    .andExpect(jsonPath("$.data.createdSectionsCount").value(4)); // Legacy Module -> Child Sub AND Root Sec -> Child Sec
+
+            List<Section> sections = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+            assertEquals(4, sections.size());
+        }
+    }
+
+    @Test
+    void testExportAndImport_RoundTrip_LongRootSection() throws Exception {
+        // Create 3-level nested section structure with root section name > 31 chars
+        String longRootName = "Very Long Root Section Name Exceeding Thirty One Characters Limit";
+        Section s1 = new Section();
+        s1.setProject(project);
+        s1.setName(longRootName);
+        s1 = sectionRepository.save(s1);
+
+        Section s2 = new Section();
+        s2.setProject(project);
+        s2.setParentSection(s1);
+        s2.setName("Level 2 Subsection");
+        s2 = sectionRepository.save(s2);
+
+        Section s3 = new Section();
+        s3.setProject(project);
+        s3.setParentSection(s2);
+        s3.setName("Level 3 SubSubSection");
+        s3 = sectionRepository.save(s3);
+
+        TestCase tc = new TestCase();
+        tc.setSection(s3);
+        tc.setTitle("Round Trip Case");
+        tc.setPrecondition("Precondition");
+        tc.setSteps("1. Execute step");
+        tc.setExpectedResult("1. Verify result");
+        tc.setCreatedBy(leader);
+        tc = testCaseRepository.save(tc);
+        tc.setCode("TC-0001");
+        testCaseRepository.save(tc);
+
+        // Export
+        MvcResult exportResult = mockMvc.perform(get("/api/projects/" + project.getId() + "/cases/export")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        byte[] exportedExcel = exportResult.getResponse().getContentAsByteArray();
+
+        // Validate re-importing exported file
+        MockMultipartFile importFile = new MockMultipartFile("file", "roundtrip.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", exportedExcel);
+
+        MvcResult validateResult = mockMvc.perform(multipart("/api/projects/" + project.getId() + "/cases/import/validate")
+                        .file(importFile)
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalRows").value(1))
+                .andExpect(jsonPath("$.data.errorRowsCount").value(0))
+                .andReturn();
+
+        String sessionId = objectMapper.readTree(validateResult.getResponse().getContentAsString()).get("data").get("importSessionId").asText();
+
+        // Confirm import into same project
+        mockMvc.perform(post("/api/projects/" + project.getId() + "/cases/import/confirm")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ExcelImportConfirmRequest(sessionId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.createdSectionsCount").value(0)); // Should resolve to existing sections, 0 new sections created!
+
+        List<Section> sections = sectionRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+        assertEquals(3, sections.size()); // Still exactly 3 sections in total!
+    }
+
     private byte[] createSampleExcelFile(String sheetName, String subPath, String title, String precondition, String steps, String expected, String testData, String priority, String type, String automation) throws Exception {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet(sheetName);
@@ -363,3 +605,4 @@ class ExcelControllerIntegrationTest {
         }
     }
 }
+

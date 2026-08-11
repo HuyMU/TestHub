@@ -145,7 +145,7 @@ erDiagram
 
 | Column | Header Name | Mandatory | Type | Notes |
 |---|---|:---:|---|---|
-| A | Subsection Path | ❌ | Text | Hierarchical path with `>` (e.g. `Parent > Child`). Empty = root section |
+| A | Section Path | ❌ | Text | Full hierarchical path from root section with `>` (e.g. `Payment > Checkout > Validation`). Empty = root section `Uncategorized`. Sheet tab names do not infer root section in Full Path mode |
 | B | Title | ✅ | Text | Test Case Title |
 | C | Precondition | ✅ | Text | Pre-requisite steps |
 | D | Steps | ✅ | Text | Multi-line execution steps with flexible step markers (`1.`, `Step 1:`) |
@@ -155,7 +155,7 @@ erDiagram
 | H | Type | ❌ | Enum | `Functional` / `Regression` / `Smoke` / `Performance` / `Security` / `Usability` / `Other` (Default: `Functional`) |
 | I | Automation Status | ❌ | Enum | `Manual` / `Automated` / `To Automate` (Default: `Manual`) |
 
-*Rule:* All imported cases enter in `Draft` status regardless of importer's role.
+*Rule:* All imported cases enter in `Draft` status regardless of importer's role. Header `"Subsection Path"` (cell A0) automatically triggers **LEGACY MODE** for backward compatibility.
 
 ---
 
@@ -169,4 +169,4 @@ erDiagram
 
 ---
 
-*This file is derived from [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.1. When SRS is updated, this file MUST be synchronized.*
+*This file is derived from [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.2. When SRS is updated, this file MUST be synchronized.*

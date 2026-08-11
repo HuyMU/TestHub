@@ -65,6 +65,11 @@ public class ExcelService {
                 Sheet sheet = workbook.getSheetAt(s);
                 String sheetName = sheet.getSheetName().trim();
 
+                Row headerRow = sheet.getRow(0);
+                String cellA0Text = headerRow != null ? getCellValueAsString(headerRow.getCell(0)).trim() : "";
+                boolean isLegacyMode = "Subsection Path".equalsIgnoreCase(cellA0Text);
+                SectionPathMode mode = isLegacyMode ? SectionPathMode.LEGACY_SUBSECTION : SectionPathMode.FULL_PATH;
+
                 int lastRow = sheet.getLastRowNum();
                 for (int r = 1; r <= lastRow; r++) { // Skip header row 0
                     Row row = sheet.getRow(r);
@@ -72,7 +77,7 @@ public class ExcelService {
                         continue;
                     }
 
-                    ExcelImportRowDto rowDto = parseAndValidateRow(row, r + 1, sheetName);
+                    ExcelImportRowDto rowDto = parseAndValidateRow(row, r + 1, sheetName, mode);
                     if (!rowDto.getErrors().isEmpty()) {
                         errorRowsCount++;
                     }
@@ -134,23 +139,27 @@ public class ExcelService {
             String sheetName = entry.getKey();
             List<ExcelImportRowDto> sheetRows = entry.getValue();
 
-            // Find or create root Section
-            Section rootSection = findRootSectionIgnoreCase(existingSections, sheetName);
-            if (rootSection == null) {
-                rootSection = new Section();
-                rootSection.setProject(project);
-                rootSection.setName(sheetName);
-                rootSection.setSortOrder(existingSections.size());
-                rootSection = sectionRepository.save(rootSection);
-                existingSections.add(rootSection);
-                createdSectionsCount++;
-            }
-
             int sheetCaseCount = 0;
             List<TestCase> sheetTestCases = new ArrayList<>();
 
             for (ExcelImportRowDto rowDto : sheetRows) {
-                SectionResolveResult resolveResult = resolveTargetSection(project, rootSection, rowDto.getSubsectionPath(), existingSections);
+                Section startingParent = null;
+                if (rowDto.getSectionPathMode() == SectionPathMode.LEGACY_SUBSECTION) {
+                    // Legacy mode: Find or create root Section by sheetName
+                    Section rootSection = findRootSectionIgnoreCase(existingSections, sheetName);
+                    if (rootSection == null) {
+                        rootSection = new Section();
+                        rootSection.setProject(project);
+                        rootSection.setName(sheetName);
+                        rootSection.setSortOrder((int) existingSections.stream().filter(s -> s.getParentSection() == null).count());
+                        rootSection = sectionRepository.save(rootSection);
+                        existingSections.add(rootSection);
+                        createdSectionsCount++;
+                    }
+                    startingParent = rootSection;
+                }
+
+                SectionResolveResult resolveResult = resolveTargetSection(project, startingParent, rowDto.getSubsectionPath(), existingSections);
                 createdSectionsCount += resolveResult.newlyCreatedCount();
 
                 TestCase tc = new TestCase();
@@ -201,7 +210,7 @@ public class ExcelService {
 
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                    "Subsection Path", "Title", "Precondition", "Steps", "Expected Result",
+                    "Section Path", "Title", "Precondition", "Steps", "Expected Result",
                     "Test Data", "Priority", "Type", "Automation Status"
             };
 
@@ -212,7 +221,7 @@ public class ExcelService {
             }
 
             // Fixed Column Widths
-            sheet.setColumnWidth(0, 22 * 256); // Subsection Path
+            sheet.setColumnWidth(0, 22 * 256); // Section Path
             sheet.setColumnWidth(1, 32 * 256); // Title
             sheet.setColumnWidth(2, 32 * 256); // Precondition
             sheet.setColumnWidth(3, 48 * 256); // Steps
@@ -262,7 +271,7 @@ public class ExcelService {
 
                 Row headerRow = sheet.createRow(0);
                 String[] headers = {
-                        "Subsection Path", "Title", "Precondition", "Steps", "Expected Result",
+                        "Section Path", "Title", "Precondition", "Steps", "Expected Result",
                         "Test Data", "Priority", "Type", "Automation Status"
                 };
 
@@ -280,9 +289,9 @@ public class ExcelService {
                 for (TestCase tc : sheetCases) {
                     Row row = sheet.createRow(rowIndex++);
 
-                    String relativePath = buildRelativeSubsectionPath(rootSec, tc.getSection());
+                    String fullPath = buildFullSectionPath(tc.getSection());
 
-                    createCell(row, 0, relativePath, dataStyle);
+                    createCell(row, 0, fullPath, dataStyle);
                     createCell(row, 1, tc.getTitle(), dataStyle);
                     createCell(row, 2, tc.getPrecondition(), dataStyle);
                     createCell(row, 3, tc.getSteps(), dataStyle);
@@ -293,7 +302,7 @@ public class ExcelService {
                     createCell(row, 8, formatEnumValue(tc.getAutomationStatus()), dataStyle);
 
                     // Calculate dynamic row height
-                    int maxLines = getMaxLines(relativePath, tc.getTitle(), tc.getPrecondition(), tc.getSteps(), tc.getExpectedResult(), tc.getTestData());
+                    int maxLines = getMaxLines(fullPath, tc.getTitle(), tc.getPrecondition(), tc.getSteps(), tc.getExpectedResult(), tc.getTestData());
                     row.setHeightInPoints((maxLines + 1) * 15f);
                 }
 
@@ -339,10 +348,11 @@ public class ExcelService {
         return user;
     }
 
-    private ExcelImportRowDto parseAndValidateRow(Row row, int rowNum, String sheetName) {
+    private ExcelImportRowDto parseAndValidateRow(Row row, int rowNum, String sheetName, SectionPathMode mode) {
         ExcelImportRowDto dto = new ExcelImportRowDto();
         dto.setRowNumber(rowNum);
         dto.setSheetName(sheetName);
+        dto.setSectionPathMode(mode);
 
         dto.setSubsectionPath(getCellValueAsString(row.getCell(0)));
         dto.setTitle(getCellValueAsString(row.getCell(1)));
@@ -439,13 +449,30 @@ public class ExcelService {
 
     private record SectionResolveResult(Section section, int newlyCreatedCount) {}
 
-    private SectionResolveResult resolveTargetSection(Project project, Section rootSection, String path, List<Section> allSections) {
-        if (path == null || path.trim().isEmpty()) {
-            return new SectionResolveResult(rootSection, 0);
+    private SectionResolveResult resolveTargetSection(Project project, Section startingParent, String path, List<Section> allSections) {
+        String trimmedPath = (path != null) ? path.trim() : "";
+
+        if (startingParent != null && trimmedPath.isEmpty()) {
+            return new SectionResolveResult(startingParent, 0);
         }
 
-        String[] parts = path.split(">");
-        Section currentParent = rootSection;
+        if (startingParent == null && trimmedPath.isEmpty()) {
+            Section uncategorized = findRootSectionIgnoreCase(allSections, "Uncategorized");
+            int newlyCreated = 0;
+            if (uncategorized == null) {
+                uncategorized = new Section();
+                uncategorized.setProject(project);
+                uncategorized.setName("Uncategorized");
+                uncategorized.setSortOrder((int) allSections.stream().filter(s -> s.getParentSection() == null).count());
+                uncategorized = sectionRepository.save(uncategorized);
+                allSections.add(uncategorized);
+                newlyCreated = 1;
+            }
+            return new SectionResolveResult(uncategorized, newlyCreated);
+        }
+
+        String[] parts = trimmedPath.split(">");
+        Section currentParent = startingParent;
         int newlyCreated = 0;
 
         for (String part : parts) {
@@ -453,27 +480,39 @@ public class ExcelService {
             if (segName.isEmpty()) continue;
 
             Section found = null;
-            for (Section s : allSections) {
-                if (s.getParentSection() != null && s.getParentSection().getId().equals(currentParent.getId()) && s.getName().equalsIgnoreCase(segName)) {
-                    found = s;
-                    break;
+            if (currentParent == null) {
+                found = findRootSectionIgnoreCase(allSections, segName);
+            } else {
+                final Long parentId = currentParent.getId();
+                for (Section s : allSections) {
+                    if (s.getParentSection() != null && s.getParentSection().getId().equals(parentId) && s.getName().equalsIgnoreCase(segName)) {
+                        found = s;
+                        break;
+                    }
                 }
             }
 
             if (found == null) {
-                final Long parentId = currentParent.getId();
-                int childCount = (int) allSections.stream()
-                        .filter(s -> s.getParentSection() != null && s.getParentSection().getId().equals(parentId))
-                        .count();
+                Section newSec = new Section();
+                newSec.setProject(project);
+                newSec.setName(segName);
 
-                Section newSub = new Section();
-                newSub.setProject(project);
-                newSub.setParentSection(currentParent);
-                newSub.setName(segName);
-                newSub.setSortOrder(childCount);
-                newSub = sectionRepository.save(newSub);
-                allSections.add(newSub);
-                currentParent = newSub;
+                if (currentParent == null) {
+                    newSec.setParentSection(null);
+                    int rootCount = (int) allSections.stream().filter(s -> s.getParentSection() == null).count();
+                    newSec.setSortOrder(rootCount);
+                } else {
+                    newSec.setParentSection(currentParent);
+                    final Long parentId = currentParent.getId();
+                    int childCount = (int) allSections.stream()
+                            .filter(s -> s.getParentSection() != null && s.getParentSection().getId().equals(parentId))
+                            .count();
+                    newSec.setSortOrder(childCount);
+                }
+
+                newSec = sectionRepository.save(newSec);
+                allSections.add(newSec);
+                currentParent = newSec;
                 newlyCreated++;
             } else {
                 currentParent = found;
@@ -577,6 +616,18 @@ public class ExcelService {
             Set<Long> nextTargetSet = includeThisSection ? null : targetSet;
             collectCasesInTree(child, allSections, casesBySectionId, nextTargetSet, collector);
         }
+    }
+
+    private String buildFullSectionPath(Section targetSec) {
+        if (targetSec == null) return "";
+        List<String> names = new ArrayList<>();
+        Section curr = targetSec;
+        while (curr != null) {
+            names.add(curr.getName());
+            curr = curr.getParentSection();
+        }
+        Collections.reverse(names);
+        return String.join(" > ", names);
     }
 
     private String buildRelativeSubsectionPath(Section rootSec, Section targetSec) {

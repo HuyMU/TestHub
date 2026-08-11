@@ -22,5 +22,6 @@ public class ExcelImportRowDto {
     private String priority;
     private String type;
     private String automationStatus;
+    private SectionPathMode sectionPathMode = SectionPathMode.FULL_PATH;
     private List<String> errors = new ArrayList<>();
 }
