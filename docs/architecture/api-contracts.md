@@ -1,3 +1,5 @@
+<!-- Keep in sync with AI_CONTEXT.md §3.2/§5 — update both together when schema or API changes. -->
+
 # API Endpoint Contracts Specification — TestFlow Lite
 
 > [!NOTE]
@@ -31,7 +33,7 @@
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| GET | `/api/projects` | - | `ApiResponse<List<ProjectDto>>` | Authenticated | List visible projects |
+| GET | `/api/projects` | - | `ApiResponse<List<ProjectDto>>` | Authenticated | List visible projects (Leader: all; Tester: assigned) |
 | POST | `/api/projects` | `CreateProjectRequest` | `ApiResponse<ProjectDto>` | Leader | Create project |
 | PUT | `/api/projects/{id}` | `UpdateProjectRequest` | `ApiResponse<ProjectDto>` | Leader | Update project details/status |
 | POST | `/api/projects/{id}/members` | `AssignMembersRequest` | `ApiResponse<Void>` | Leader | Assign Testers to Project |
@@ -51,12 +53,12 @@
 
 ---
 
-## 5. Test Case Module (`/api/cases`)
+## 5. Test Case Module (`/api/projects/{projectId}/cases` & `/api/cases`)
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| GET | `/api/cases` | Filter parameters (`projectId`, `sectionId`, `keyword`, `priority`, `type`, `status`, `page`, `size`) | `ApiResponse<Page<TestCaseDto>>` | Authenticated | List/search Test Cases |
-| POST | `/api/cases` | `CreateTestCaseRequest` | `ApiResponse<TestCaseDto>` | Leader / Tester | Create Test Case (`Draft`) |
+| GET | `/api/projects/{projectId}/cases` | Filter parameters (`sectionId`, `keyword`, `priority`, `type`, `status`, `automationStatus`, `page`, `size`) | `ApiResponse<PageResponse<TestCaseDto>>` | Authenticated | List/search Test Cases in project |
+| POST | `/api/projects/{projectId}/cases` | `CreateTestCaseRequest` | `ApiResponse<TestCaseDto>` | Leader / Tester | Create Test Case (`Draft`) |
 | GET | `/api/cases/{id}` | - | `ApiResponse<TestCaseDto>` | Authenticated | Get Test Case details |
 | PUT | `/api/cases/{id}` | `UpdateTestCaseRequest` | `ApiResponse<TestCaseDto>` | Leader / Tester | Edit Test Case (Tester edits `Ready` -> `Draft`) |
 | DELETE | `/api/cases/{id}` | - | `ApiResponse<Void>` | Leader / Tester (Owner) | Delete Test Case |
@@ -64,7 +66,7 @@
 | POST | `/api/cases/{id}/approve` | - | `ApiResponse<TestCaseDto>` | Leader | Approve case (`Review` -> `Ready`) |
 | POST | `/api/cases/{id}/reject` | `RejectCommentRequest` | `ApiResponse<TestCaseDto>` | Leader | Reject case (`Review` -> `Draft` + comment) |
 | POST | `/api/cases/{id}/clone` | - | `ApiResponse<TestCaseDto>` | Leader / Tester | Clone Test Case |
-| GET | `/api/cases/review-queue` | Filter parameters | `ApiResponse<Page<TestCaseDto>>` | Leader | Global FIFO queue of cases pending review |
+| GET | `/api/cases/review-queue` | Filter parameters | `ApiResponse<PageResponse<TestCaseDto>>` | Leader | Global FIFO queue of cases pending review |
 
 ---
 
@@ -100,10 +102,34 @@
 | POST | `/api/runs/{id}/cases` | `AddCasesToRunRequest` | `ApiResponse<TestRunDto>` | Leader | Append cases to open run with content snapshotting |
 | DELETE | `/api/runs/{id}/cases/{runCaseId}` | - | `ApiResponse<Void>` | Leader | Remove case from open run |
 | POST | `/api/runs/{id}/close` | - | `ApiResponse<TestRunDto>` | Leader | Close Test Run (`status` = `Closed`, `closed_at` = `now()`) |
+| GET | `/api/runs/{id}/report` | - | `ApiResponse<TestRunReportDto>` | Authenticated | Get detailed Test Run execution report JSON |
+| GET | `/api/runs/{id}/report/export` | - | `.xlsx` file stream | Authenticated | Export detailed Test Run report to formatted Excel sheet |
 
 ---
 
-## 9. Automation Result API (`/api/automation`)
+## 9. Execution & Attachment Module (`/api/runs` & `/api/attachments`)
+
+| Method | Endpoint | Request Body | Response Payload | Auth | Description |
+|---|---|---|---|---|---|
+| POST | `/api/runs/{id}/cases/{caseId}/execute` | `ExecuteCaseRequest` | `ApiResponse<ExecuteCaseResponse>` | Leader / Assigned Tester | Record manual test execution result (returns `latestExecutionHistoryId`) |
+| POST | `/api/runs/{id}/cases/{caseId}/review` | `ReviewResultRequest` | `ApiResponse<TestRunCaseDto>` | Leader | Review execution result (`Reviewed` / `Retest`) |
+| GET | `/api/runs/{id}/cases/{caseId}/history` | - | `ApiResponse<List<ExecutionHistoryDto>>` | Authenticated | List execution history attempts for a run case |
+| POST | `/api/attachments/upload` | `MultipartFile` (`file`), `entityType`, `entityId` | `ApiResponse<AttachmentDto>` | Authenticated | Upload attachment file for execution history attempt |
+| GET | `/api/attachments/{id}/file` | - | Resource file stream | Authenticated (Project Member) | Download/stream secure attachment file |
+
+---
+
+## 10. API Token Management Module (`/api/tokens`)
+
+| Method | Endpoint | Request Body | Response Payload | Auth | Description |
+|---|---|---|---|---|---|
+| POST | `/api/tokens` | `CreateApiTokenRequest` | `ApiResponse<ApiTokenCreatedDto>` | Leader | Generate new API token (plaintext token returned ONCE) |
+| GET | `/api/tokens` | - | `ApiResponse<List<ApiTokenDto>>` | Leader | List generated API tokens |
+| DELETE | `/api/tokens/{id}` | - | `ApiResponse<Void>` | Leader | Revoke API token (`revoked_at` = `now()`) |
+
+---
+
+## 11. Automation Result API (`/api/automation`)
 
 | Method | Endpoint | Header | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
@@ -111,9 +137,9 @@
 
 ---
 
-## 10. Audit Log & Dashboard Modules (`/api/audit-logs` & `/api/dashboard`)
+## 12. Audit Log & Dashboard Modules (`/api/audit-logs` & `/api/dashboard`)
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| GET | `/api/audit-logs` | Filter parameters | `ApiResponse<Page<AuditLogDto>>` | Leader | Audit trail logs |
-| GET | `/api/dashboard/{projectId}` | - | `ApiResponse<DashboardSummaryDto>` | Authenticated | Pass/Fail/Blocked rates, Review Queue count, Milestone progress |
+| GET | `/api/audit-logs` | Filter parameters (`userId`, `action`, `entityType`, `startDate`, `endDate`, `page`, `size`) | `ApiResponse<PageResponse<AuditLogDto>>` | Leader | Query audit trail logs |
+| GET | `/api/dashboard/{projectId}` | - | `ApiResponse<DashboardDto>` | Authenticated | Aggregated pass/fail/blocked rates, review queue count, milestone progress |

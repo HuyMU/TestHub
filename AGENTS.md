@@ -20,7 +20,7 @@ At the beginning of every session or task execution, you **MUST** read the follo
 
 ### Scope & Requirement Scoping
 - **Strict Scope Boundaries**: Implement strictly what is specified in the task prompt. Do NOT add unrequested features, future phase tasks, or extra architectural abstractions.
-- **Single Source of Truth**: [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) v3.0 strictly takes precedence over all other docs and assumptions.
+- **Single Source of Truth**: The current version of [DacTa-TestFlowLite-SRS.md](./DacTa-TestFlowLite-SRS.md) strictly takes precedence over all other docs and assumptions.
 
 ### Architecture & Code Structure
 - **Package-by-Feature (Backend)**: Keep controllers, services, repositories, and DTOs inside their domain package (e.g. `com.testhub.testflowlite.project.*`).

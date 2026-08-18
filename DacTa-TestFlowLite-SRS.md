@@ -207,6 +207,9 @@ Team < 10 người (1 Leader + tối đa ~9 Tester), nhiều Project, ngôn ng�
 
 ## 7. THIẾT KẾ DỮ LIỆU (Data Model)
 
+> [!NOTE]
+> This is a simplified baseline reference. For the exact, currently-accurate schema and API catalog, see [AI_CONTEXT.md](./AI_CONTEXT.md) §3.2 and §5.
+
 | Bảng | Mô tả |
 |---|---|
 | `users` | id, username, email, password_hash, full_name, role (LEADER/TESTER), is_active, created_at |
@@ -264,6 +267,9 @@ Mỗi worksheet (sheet) trong file `.xlsx` đại diện cho **1 Section gốc (
 ---
 
 ## 9. THIẾT KẾ API (Danh sách endpoint chính)
+
+> [!NOTE]
+> This is a simplified baseline reference. For the exact, currently-accurate schema and API catalog, see [AI_CONTEXT.md](./AI_CONTEXT.md) §3.2 and §5.
 
 | Method | Endpoint | Mô tả |
 |---|---|---|

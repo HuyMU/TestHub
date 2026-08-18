@@ -3,8 +3,8 @@
 > [!IMPORTANT]
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
-- **Last Updated**: 2026-08-11
-- **Checked Commit**: `23b4109` (Branch: `main`)
+- **Last Updated**: 2026-08-18
+- **Checked Commit**: `22b65e7` (Branch: `main`)
 
 ---
 
@@ -88,8 +88,14 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 9: Dashboard & Reporting (FR-30/31)**
-- *Scope*: Implement aggregated statistics API (`GET /api/dashboard/{projectId}`) computing Pass/Fail/Blocked execution rates, active review queue counters, milestone progress, and exportable run reports (`GET /api/runs/{id}/report`).
+**Slice 10: Access Control Consolidation & Import Session Verification**
+
+> [!NOTE]
+> Commit `22b65e7` (Excel Import Section Hierarchy Redesign) was informally labeled "Slice 10" in git history, but functionally acts as an extension of Slice 5 (Excel Import/Export). Going forward, the numeral **Slice 10** is reserved for Access Control Consolidation and session safety fixes to avoid confusing future agents reading `git log`.
+
+- **Core Objectives**:
+  1. **Access Control Consolidation**: Centralize the 14 duplicate call sites of `projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())` across 9 backend services (`AttachmentService`, `MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `DashboardService`, `TestRunService`, `TestCaseService`, `ExecutionService`) into a unified helper/security utility.
+  2. **Excel Import Session Project Match Verification**: In `ExcelService.confirmImport()`, enforce a validation check that `session.getProject().getId()` strictly matches the `projectId` path parameter, preventing confirmation of staged import sessions into mismatched projects.
 
 ---
 
