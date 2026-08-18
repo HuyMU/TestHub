@@ -57,7 +57,7 @@
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| GET | `/api/projects/{projectId}/cases` | Filter parameters (`sectionId`, `keyword`, `priority`, `type`, `status`, `automationStatus`, `page`, `size`) | `ApiResponse<PageResponse<TestCaseDto>>` | Authenticated | List/search Test Cases in project |
+| GET | `/api/projects/{projectId}/cases` | Filter parameters (`sectionId`, `keyword`, `priority`, `type`, `status`, `automationStatus`, `page`, `size`) | `ApiResponse<Page<TestCaseDto>>` | Authenticated | List/search Test Cases in project |
 | POST | `/api/projects/{projectId}/cases` | `CreateTestCaseRequest` | `ApiResponse<TestCaseDto>` | Leader / Tester | Create Test Case (`Draft`) |
 | GET | `/api/cases/{id}` | - | `ApiResponse<TestCaseDto>` | Authenticated | Get Test Case details |
 | PUT | `/api/cases/{id}` | `UpdateTestCaseRequest` | `ApiResponse<TestCaseDto>` | Leader / Tester | Edit Test Case (Tester edits `Ready` -> `Draft`) |
@@ -66,7 +66,7 @@
 | POST | `/api/cases/{id}/approve` | - | `ApiResponse<TestCaseDto>` | Leader | Approve case (`Review` -> `Ready`) |
 | POST | `/api/cases/{id}/reject` | `RejectCommentRequest` | `ApiResponse<TestCaseDto>` | Leader | Reject case (`Review` -> `Draft` + comment) |
 | POST | `/api/cases/{id}/clone` | - | `ApiResponse<TestCaseDto>` | Leader / Tester | Clone Test Case |
-| GET | `/api/cases/review-queue` | Filter parameters | `ApiResponse<PageResponse<TestCaseDto>>` | Leader | Global FIFO queue of cases pending review |
+| GET | `/api/cases/review-queue` | - | `ApiResponse<List<TestCaseDto>>` | Leader | Global FIFO queue of cases pending review |
 
 ---
 
@@ -141,5 +141,5 @@
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| GET | `/api/audit-logs` | Filter parameters (`userId`, `action`, `entityType`, `startDate`, `endDate`, `page`, `size`) | `ApiResponse<PageResponse<AuditLogDto>>` | Leader | Query audit trail logs |
+| GET | `/api/audit-logs` | Filter parameters (`entityType`, `userId`) | `ApiResponse<List<AuditLogDto>>` | Leader | Query audit trail logs |
 | GET | `/api/dashboard/{projectId}` | - | `ApiResponse<DashboardDto>` | Authenticated | Aggregated pass/fail/blocked rates, review queue count, milestone progress |
