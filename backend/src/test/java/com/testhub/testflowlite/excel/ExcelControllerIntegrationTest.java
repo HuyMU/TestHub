@@ -575,6 +575,23 @@ class ExcelControllerIntegrationTest {
         assertEquals(3, sections.size()); // Still exactly 3 sections in total!
     }
 
+    @Test
+    void testGenerateTemplate_NonExistentProject_Returns404() throws Exception {
+        mockMvc.perform(get("/api/projects/999999/cases/import/template")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testValidateImport_NonExistentProject_Returns404() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", new byte[10]);
+
+        mockMvc.perform(multipart("/api/projects/999999/cases/import/validate")
+                        .file(file)
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound());
+    }
+
     private byte[] createSampleExcelFile(String sheetName, String subPath, String title, String precondition, String steps, String expected, String testData, String priority, String type, String automation) throws Exception {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet(sheetName);

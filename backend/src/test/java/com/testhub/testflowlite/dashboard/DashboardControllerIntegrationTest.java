@@ -223,4 +223,11 @@ class DashboardControllerIntegrationTest {
                         .header("Authorization", "Bearer " + unassignedTesterToken))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void testDashboard_NonExistentProject_Returns404() throws Exception {
+        mockMvc.perform(get("/api/dashboard/999999")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound());
+    }
 }

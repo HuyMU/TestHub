@@ -3,6 +3,7 @@ package com.testhub.testflowlite.excel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.testhub.testflowlite.audit.AuditLogService;
 import com.testhub.testflowlite.common.ForbiddenException;
+import com.testhub.testflowlite.common.ResourceNotFoundException;
 import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
 import com.testhub.testflowlite.project.ProjectAccessGuard;
@@ -71,7 +72,7 @@ class ExcelServiceUnitTest {
                 // No-op for unit tests
             }
         };
-        projectAccessGuard = new ProjectAccessGuard(projectMemberRepository, userRepository);
+        projectAccessGuard = new ProjectAccessGuard(projectRepository, projectMemberRepository, userRepository);
         excelService = new ExcelService(
                 sessionRepository,
                 projectRepository,
@@ -91,6 +92,7 @@ class ExcelServiceUnitTest {
         project.setId(10L);
         project.setName("Unit Project");
 
+        lenient().when(projectRepository.existsById(10L)).thenReturn(true);
         lenient().when(userRepository.findByUsernameOrEmail("tester", "tester")).thenReturn(Optional.of(user));
         lenient().when(projectRepository.findById(10L)).thenReturn(Optional.of(project));
         lenient().when(projectRepository.getReferenceById(10L)).thenReturn(project);
@@ -107,6 +109,16 @@ class ExcelServiceUnitTest {
             assertEquals("Section Path", headerRow.getCell(0).getStringCellValue());
             assertEquals("Title", headerRow.getCell(1).getStringCellValue());
         }
+    }
+
+    @Test
+    void testGenerateTemplate_NonExistentProject_ThrowsResourceNotFound() {
+        when(projectRepository.existsById(999L)).thenReturn(false);
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> excelService.generateTemplate(999L, "tester")
+        );
     }
 
     @Test
@@ -158,6 +170,20 @@ class ExcelServiceUnitTest {
     }
 
     @Test
+    void testValidateImport_NonExistentProject_ThrowsResourceNotFound() {
+        when(projectRepository.existsById(999L)).thenReturn(false);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", new byte[10]);
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> excelService.validateImport(999L, file, "tester")
+        );
+
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
     void testConfirmImport_ThrowsForbiddenWhenSessionProjectMismatch() throws Exception {
         Project projectA = new Project();
         projectA.setId(10L);
@@ -170,6 +196,7 @@ class ExcelServiceUnitTest {
         session.setExpiresAt(LocalDateTime.now().plusMinutes(10));
 
         when(sessionRepository.findByImportSessionId("session-project-a")).thenReturn(Optional.of(session));
+        when(projectRepository.existsById(20L)).thenReturn(true);
 
         // Attempting to confirm session for Project A (10L) into Project B (20L)
         ForbiddenException ex = assertThrows(

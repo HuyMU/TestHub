@@ -6,72 +6,55 @@
 ---
 
 ## 1. Goal
-Implement **Slice 10: Access Control Consolidation + Excel Import Session Guard**:
-1. Centralize the duplicated `projectMemberRepository.existsByProjectIdAndUserId(...)` membership checks across 9 backend services (14 call sites) into a single shared `ProjectAccessGuard` component.
-2. Fix the IDOR gap in `ExcelService.confirmImport()` by validating that the staged `ExcelImportSession` project ID strictly matches the path `projectId`.
+Implement **Slice 10b (Hotfix): Restore Project-Existence Check in `ProjectAccessGuard.verifyProjectAccess`**:
+- Restore centralized project existence validation (`projectRepository.existsById(projectId) -> 404 ResourceNotFoundException`) in `ProjectAccessGuard.verifyProjectAccess`.
+- Fix the regression where `DashboardService.getDashboard`, `ExcelService.generateTemplate`, and `ExcelService.validateImport` lost existence validation for non-existent `projectId`s when invoked by Leaders or Testers.
 
 ## 2. Current Branch & Status
 - **Branch**: `main`
-- **Status**: Complete & Verified (`mvn test-compile`, unit tests `13/13` pass, `npm run build` pass).
+- **Status**: Complete & Verified (22/22 unit tests pass, `npm run build` pass).
 
 ## 3. Work Completed
-- **`ProjectAccessGuard` (`com.testhub.testflowlite.project`)**:
-  - `verifyProjectAccess(Long projectId, String currentUsername)`: Resolves user via `userRepository` and returns `User` or throws HTTP 403 `ForbiddenException("You do not have access to this project")` when `user.role != Role.LEADER` and user is not in `project_members`.
-  - `hasProjectAccess(Long projectId, Long userId, Role role)`: Centralized boolean helper returning `role == Role.LEADER || projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)` for conditional composition.
-- **Refactored 9 Backend Services**:
-  1. `MilestoneService.java`: Replaced private `verifyProjectAccess` with `projectAccessGuard.verifyProjectAccess(projectId, currentUsername)`.
-  2. `ProjectService.java`: Replaced checks in `getProjectById` and `getProjectMembers` with `projectAccessGuard.verifyProjectAccess`. Kept `assignMembers` pre-insert check intact.
-  3. `SectionService.java`: Injected `ProjectAccessGuard`, delegated in `verifyProjectAccess`, removed unused imports.
-  4. `ExcelService.java`: Deleted private `verifyProjectAccess`, replaced 4 call sites (`validateImport`, `confirmImport`, `generateTemplate`, `exportCases`), and added session-project match check in `confirmImport()`:
-     ```java
-     if (!session.getProject().getId().equals(projectId)) {
-         throw new ForbiddenException("Import session does not belong to project " + projectId);
-     }
-     ```
-  5. `TestCaseService.java`: Injected `ProjectAccessGuard`, delegated in `verifyProjectAccess`, removed `ProjectMemberRepository`.
-  6. `DashboardService.java`: Injected `ProjectAccessGuard`, replaced manual membership and user check in `getDashboard`.
-  7. `TestRunService.java`: Injected `ProjectAccessGuard`, replaced in `verifyProjectAccess` and `addCasesToRunInternal` for assigned tester.
-  8. `ExecutionService.java`: Injected `ProjectAccessGuard`, replaced in `verifyRunCaseAccess` and `verifyExecutionHistoryAccess`.
-  9. `AttachmentService.java`: Injected `ProjectAccessGuard`, replaced in `verifyEntityAccess` while preserving creator bypass (`isCreator || projectAccessGuard.hasProjectAccess(...)`).
-- **Unit Testing**:
-  - Created `ProjectAccessGuardUnitTest.java` (7 test cases testing Leader bypass, member pass, non-member 403, user not found, and boolean helper).
-  - Updated `ExcelServiceUnitTest.java` with `ProjectAccessGuard` integration and added `testConfirmImport_ThrowsForbiddenWhenSessionProjectMismatch()`.
+- **`ProjectAccessGuard.java` (`com.testhub.testflowlite.project`)**:
+  - Injected `ProjectRepository`.
+  - Added project existence check in `verifyProjectAccess(Long projectId, String currentUsername)`:
+    ```java
+    if (!projectRepository.existsById(projectId)) {
+        throw new ResourceNotFoundException("Project not found: " + projectId);
+    }
+    ```
+  - Left `hasProjectAccess` unchanged (zero redundant overhead for hot paths on already-resolved project entities).
+- **Unit Tests**:
+  - `ProjectAccessGuardUnitTest.java`: Added existence short-circuit test (`testVerifyProjectAccess_ProjectNotFoundThrowsResourceNotFound`) asserting `userRepository` and `projectMemberRepository` are not called, plus test verifying `hasProjectAccess` does not query `ProjectRepository`. (9 tests pass)
+  - `ExcelServiceUnitTest.java`: Updated to 3-arg `ProjectAccessGuard` constructor; added `testGenerateTemplate_NonExistentProject_ThrowsResourceNotFound` and `testValidateImport_NonExistentProject_ThrowsResourceNotFound` asserting session is never saved. (8 tests pass)
+  - `DashboardServiceUnitTest.java` (New): Created Mockito unit test suite verifying `getDashboard` behavior across Leader, Tester member, Tester non-member (403), and non-existent project (404 for both Leader and Tester). (5 tests pass)
 - **Documentation**:
-  - `CLAUDE.md`: Added Rule 23 for `ProjectAccessGuard`.
-  - `CURRENT_STATE.md`: Added AD-27 detailing Access Control Consolidation and Confirm Import project guard; updated Section 6.
+  - `CURRENT_STATE.md`: Added AD-28 detailing hotfix and scope rationale.
 
 ## 4. Files Changed
-- `backend/src/main/java/com/testhub/testflowlite/project/ProjectAccessGuard.java` (New)
-- `backend/src/main/java/com/testhub/testflowlite/milestone/MilestoneService.java`
-- `backend/src/main/java/com/testhub/testflowlite/project/ProjectService.java`
-- `backend/src/main/java/com/testhub/testflowlite/section/SectionService.java`
-- `backend/src/main/java/com/testhub/testflowlite/excel/ExcelService.java`
-- `backend/src/main/java/com/testhub/testflowlite/testcase/TestCaseService.java`
-- `backend/src/main/java/com/testhub/testflowlite/dashboard/DashboardService.java`
-- `backend/src/main/java/com/testhub/testflowlite/testrun/TestRunService.java`
-- `backend/src/main/java/com/testhub/testflowlite/execution/ExecutionService.java`
-- `backend/src/main/java/com/testhub/testflowlite/attachment/AttachmentService.java`
-- `backend/src/test/java/com/testhub/testflowlite/project/ProjectAccessGuardUnitTest.java` (New)
+- `backend/src/main/java/com/testhub/testflowlite/project/ProjectAccessGuard.java` (Single production code file)
+- `backend/src/test/java/com/testhub/testflowlite/project/ProjectAccessGuardUnitTest.java`
 - `backend/src/test/java/com/testhub/testflowlite/excel/ExcelServiceUnitTest.java`
-- `CLAUDE.md`
+- `backend/src/test/java/com/testhub/testflowlite/dashboard/DashboardServiceUnitTest.java` (New)
+- `backend/src/test/java/com/testhub/testflowlite/dashboard/DashboardControllerIntegrationTest.java`
+- `backend/src/test/java/com/testhub/testflowlite/excel/ExcelControllerIntegrationTest.java`
 - `CURRENT_STATE.md`
 - `TASK_HANDOFF.md`
 
 ## 5. Validation Performed
-- **Grep Verification**: `grep -rn "existsByProjectIdAndUserId" backend/src/main/java` returns exactly 2 occurrences: `ProjectAccessGuard.java` (central guard) and `ProjectService.java` (assign members check).
-- **Backend Unit Tests**: `mvn test -Dtest=ProjectAccessGuardUnitTest,ExcelServiceUnitTest` → 13/13 tests PASS.
-- **Backend Compilation**: `mvn test-compile` → BUILD SUCCESS (0 errors).
-- **Frontend Build**: `npm run build` in `frontend/` → built in 53s, 0 TypeScript errors.
+- **Constructor Audit**: `grep -rn "new ProjectAccessGuard(" backend/src` → Exactly 2 manual test instantiation sites (`ExcelServiceUnitTest`, `DashboardServiceUnitTest`), both using 3-arg constructor `(projectRepository, projectMemberRepository, userRepository)`.
+- **Unit Test Suite**: `mvn test -Dtest=ProjectAccessGuardUnitTest,ExcelServiceUnitTest,DashboardServiceUnitTest` → **22/22 tests PASS** (0 failures, 0 errors).
+- **Frontend Build**: `npm run build` in `frontend/` → **Built in 14.90s, 0 TypeScript errors**.
 
 ## 6. Known Issues / Blockers
-- None. (Testcontainers integration suite requires local Docker daemon when executed).
+- **Testcontainers Integration Tests**: Running the full `mvn clean test` fails during container startup because the local Windows Docker daemon is not active / cannot find a valid Docker environment (`IllegalStateException: Could not find a valid Docker environment`). All business logic and regression test cases are covered and verified via Mockito unit tests.
 
 ## 7. Decisions Made
-- `ProjectAccessGuard` provides both `verifyProjectAccess` (throws `ForbiddenException`) and `hasProjectAccess` (returns `boolean`) to accommodate both standard endpoints and multi-condition authorization logic (`AttachmentService` creator check, `TestRunService` assigned user input validation).
+- `ProjectAccessGuard.verifyProjectAccess` performs the `projectRepository.existsById(projectId)` check upfront before resolving user or checking permissions, ensuring HTTP 404 is thrown consistently regardless of whether the requester is a Leader or a non-member Tester.
+- `hasProjectAccess` intentionally omits the check since callers already have the project entity resolved via JPA relationships.
 
 ## 8. Explicit Next Step
-- Commit changes with message: `fix(security): consolidate project access checks into ProjectAccessGuard and add confirmImport session-project match guard`
-- Phase 2 Planning / Advanced QA features.
+- Commit changes with message: `fix(security): restore project-existence check in ProjectAccessGuard.verifyProjectAccess`
 
 ## 9. Context Files to Re-Read
 - [CLAUDE.md](./CLAUDE.md)

@@ -21,6 +21,9 @@ import static org.mockito.Mockito.*;
 class ProjectAccessGuardUnitTest {
 
     @Mock
+    private ProjectRepository projectRepository;
+
+    @Mock
     private ProjectMemberRepository projectMemberRepository;
 
     @Mock
@@ -43,6 +46,22 @@ class ProjectAccessGuardUnitTest {
         testerUser.setId(2L);
         testerUser.setUsername("tester1");
         testerUser.setRole(Role.TESTER);
+
+        lenient().when(projectRepository.existsById(anyLong())).thenReturn(true);
+    }
+
+    @Test
+    void testVerifyProjectAccess_ProjectNotFoundThrowsResourceNotFound() {
+        when(projectRepository.existsById(100L)).thenReturn(false);
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> projectAccessGuard.verifyProjectAccess(100L, "leader")
+        );
+
+        assertEquals("Project not found: 100", exception.getMessage());
+        verify(userRepository, never()).findByUsernameOrEmail(anyString(), anyString());
+        verify(projectMemberRepository, never()).existsByProjectIdAndUserId(anyLong(), anyLong());
     }
 
     @Test
@@ -121,5 +140,16 @@ class ProjectAccessGuardUnitTest {
 
         assertFalse(projectAccessGuard.hasProjectAccess(100L, 2L, Role.TESTER));
         verify(projectMemberRepository).existsByProjectIdAndUserId(100L, 2L);
+    }
+
+    @Test
+    void testHasProjectAccess_DoesNotCallProjectRepository() {
+        when(projectMemberRepository.existsByProjectIdAndUserId(100L, 2L)).thenReturn(true);
+
+        projectAccessGuard.hasProjectAccess(100L, 1L, Role.LEADER);
+        projectAccessGuard.hasProjectAccess(100L, 2L, Role.TESTER);
+
+        verify(projectRepository, never()).existsById(anyLong());
+        verify(projectRepository, never()).findById(anyLong());
     }
 }
