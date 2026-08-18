@@ -8,7 +8,6 @@ import com.testhub.testflowlite.user.UserDto;
 import com.testhub.testflowlite.user.UserRepository;
 import com.testhub.testflowlite.user.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +20,7 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final UserRepository userRepository;
     private final UserService userService;
     private final AuditLogService auditLogService;
@@ -64,12 +64,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
-        User currentUser = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (currentUser.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(id, currentUser.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
+        projectAccessGuard.verifyProjectAccess(id, currentUsername);
 
         return mapToDto(project);
     }
@@ -144,12 +139,7 @@ public class ProjectService {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
 
-        User currentUser = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (currentUser.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUser.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
+        projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
 
         List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
         return members.stream()

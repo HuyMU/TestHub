@@ -88,14 +88,14 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 10: Access Control Consolidation & Import Session Verification**
+**Phase 2 Planning / Advanced QA Workflows**
 
-> [!NOTE]
-> Commit `22b65e7` (Excel Import Section Hierarchy Redesign) was informally labeled "Slice 10" in git history, but functionally acts as an extension of Slice 5 (Excel Import/Export). Going forward, the numeral **Slice 10** is reserved for Access Control Consolidation and session safety fixes to avoid confusing future agents reading `git log`.
-
-- **Core Objectives**:
-  1. **Access Control Consolidation**: Centralize the 14 duplicate call sites of `projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())` across 9 backend services (`AttachmentService`, `MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `DashboardService`, `TestRunService`, `TestCaseService`, `ExecutionService`) into a unified helper/security utility.
-  2. **Excel Import Session Project Match Verification**: In `ExcelService.confirmImport()`, enforce a validation check that `session.getProject().getId()` strictly matches the `projectId` path parameter, preventing confirmation of staged import sessions into mismatched projects.
+- **Completed in Slice 10**:
+  1. **Access Control Consolidation**: Centralized project membership and Leader-bypass checks across 9 backend services (`AttachmentService`, `MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `DashboardService`, `TestRunService`, `TestCaseService`, `ExecutionService`) into a unified `ProjectAccessGuard` component.
+  2. **Excel Import Session Project Match Verification**: In `ExcelService.confirmImport()`, added guard verifying `session.getProject().getId().equals(projectId)` to prevent cross-project session confirmation.
+- **Recommended Next Priorities**:
+  1. **HTTP-only Cookie Migration**: Migrate JWT Refresh Token storage from `localStorage` to secure HTTP-only cookies.
+  2. **Testcontainers / Integration Suite Health**: Run full integration test suite when local Docker daemon is active.
 
 ---
 
@@ -136,4 +136,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 24. **Axios 1-Level Response Unwrap Frontend Bugfix (2026-08-10)**: Corrected `dashboardApi.getDashboard` return signature to `Promise<DashboardDto>` and updated `DashboardPage.tsx` to handle unwrapped payload directly, resolving false-positive error rendering ("Failed to load dashboard metrics"). Corrected `exportTestRunReport` in `testRunApi.ts` to use `new Blob([response.data || response])` with MIME type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, preventing 9-byte corrupt `"undefined"` file creation on blob responseType downloads. Added explicit developer warning comment in `axiosClient.ts` to document 1-level response unwrap semantics.
 25. **Allow Null Test Case Code Pending Generation (2026-08-11)**: Added Flyway migration `V6__allow_null_code_pending_generation.sql` modifying `test_cases.code` column to `VARCHAR(20) NULL` (preserving UNIQUE constraint). Resolves `Column 'code' cannot be null` database exception during initial `save()` / `saveAll()` prior to `TC-%04d` ID-based code generation across single creation, cloning, and Excel import.
 26. **Excel Full Section Path Import & Backward Compatibility (2026-08-11)**: Redesigned Excel import section resolution to use full section paths in Column A (`Section Path` header, e.g. `Payment > Checkout > Validation`) independent of sheet tab names. Blank Column A cells map to default root Section `Uncategorized`. Format is detected per-sheet based on row 0 cell A0: header `Subsection Path` triggers per-sheet **LEGACY MODE** (sheet name = root section, Column A = relative path), while any other text (including `Section Path`) triggers **FULL_PATH MODE**. Export outputs full section path in Column A including root section name, guaranteeing 100% round-trip section alignment even for truncated sheet names (>31 chars). Disabled "Add Test Case" button in frontend `TestCaseList.tsx` with Tooltip when `sections.length === 0`. Verified via `ExcelServiceUnitTest` (5 unit tests pass) and `ExcelControllerIntegrationTest`.
-
+27. **Access Control Consolidation & Import Session Project Guard (2026-08-18)**: Centralized project-level membership checks across 9 backend services (`MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `TestCaseService`, `DashboardService`, `TestRunService`, `ExecutionService`, `AttachmentService`) into `ProjectAccessGuard` (`verifyProjectAccess` returning resolved `User` or throwing HTTP 403 `ForbiddenException`, and `hasProjectAccess(projectId, userId, role)` for boolean composition). Added strict project verification in `ExcelService.confirmImport()` (`session.getProject().getId().equals(projectId)`) to prevent cross-project import session confirmation. Direct queries to `projectMemberRepository.existsByProjectIdAndUserId` eliminated across all service call sites except `ProjectService.assignMembers` (pre-insert duplication check). Verified with 13 unit tests across `ProjectAccessGuardUnitTest` and `ExcelServiceUnitTest`.

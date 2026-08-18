@@ -5,11 +5,10 @@ import com.testhub.testflowlite.common.ConflictException;
 import com.testhub.testflowlite.common.ResourceNotFoundException;
 import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.project.ProjectRepository;
 import com.testhub.testflowlite.testrun.TestRunRepository;
 import com.testhub.testflowlite.user.User;
-import com.testhub.testflowlite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -24,9 +23,8 @@ public class MilestoneService {
 
     private final MilestoneRepository milestoneRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final TestRunRepository testRunRepository;
-    private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
@@ -118,14 +116,7 @@ public class MilestoneService {
             throw new ResourceNotFoundException("Project not found: " + projectId);
         }
 
-        User user = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (user.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
-
-        return user;
+        return projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
     }
 
     private User verifyLeaderAccess(Long projectId, String currentUsername) {

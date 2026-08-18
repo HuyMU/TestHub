@@ -2,8 +2,10 @@ package com.testhub.testflowlite.excel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.testhub.testflowlite.audit.AuditLogService;
+import com.testhub.testflowlite.common.ForbiddenException;
 import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.project.ProjectMemberRepository;
 import com.testhub.testflowlite.project.ProjectRepository;
 import com.testhub.testflowlite.section.Section;
@@ -17,9 +19,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -46,21 +46,18 @@ class ExcelServiceUnitTest {
     private ProjectMemberRepository projectMemberRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private SectionRepository sectionRepository;
 
     @Mock
     private TestCaseRepository testCaseRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Mock
     private AuditLogService auditLogService;
-
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
-
-    @InjectMocks
+    private ProjectAccessGuard projectAccessGuard;
     private ExcelService excelService;
 
     private User user;
@@ -68,6 +65,23 @@ class ExcelServiceUnitTest {
 
     @BeforeEach
     void setUp() {
+        auditLogService = new AuditLogService(null) {
+            @Override
+            public void logAction(Long userId, String action, String entityType, Long entityId, String detailJson) {
+                // No-op for unit tests
+            }
+        };
+        projectAccessGuard = new ProjectAccessGuard(projectMemberRepository, userRepository);
+        excelService = new ExcelService(
+                sessionRepository,
+                projectRepository,
+                projectAccessGuard,
+                sectionRepository,
+                testCaseRepository,
+                auditLogService,
+                objectMapper
+        );
+
         user = new User();
         user.setId(1L);
         user.setUsername("tester");
@@ -77,9 +91,9 @@ class ExcelServiceUnitTest {
         project.setId(10L);
         project.setName("Unit Project");
 
-        lenient().when(projectRepository.existsById(10L)).thenReturn(true);
         lenient().when(userRepository.findByUsernameOrEmail("tester", "tester")).thenReturn(Optional.of(user));
         lenient().when(projectRepository.findById(10L)).thenReturn(Optional.of(project));
+        lenient().when(projectRepository.getReferenceById(10L)).thenReturn(project);
     }
 
     @Test
@@ -141,6 +155,31 @@ class ExcelServiceUnitTest {
         assertEquals(0, resp.getErrorRowsCount());
         assertEquals(SectionPathMode.FULL_PATH, resp.getRows().get(0).getSectionPathMode());
         assertEquals(SectionPathMode.LEGACY_SUBSECTION, resp.getRows().get(1).getSectionPathMode());
+    }
+
+    @Test
+    void testConfirmImport_ThrowsForbiddenWhenSessionProjectMismatch() throws Exception {
+        Project projectA = new Project();
+        projectA.setId(10L);
+        projectA.setName("Project A");
+
+        ExcelImportSession session = new ExcelImportSession();
+        session.setImportSessionId("session-project-a");
+        session.setProject(projectA);
+        session.setParsedPayloadJson("[]");
+        session.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+
+        when(sessionRepository.findByImportSessionId("session-project-a")).thenReturn(Optional.of(session));
+
+        // Attempting to confirm session for Project A (10L) into Project B (20L)
+        ForbiddenException ex = assertThrows(
+                ForbiddenException.class,
+                () -> excelService.confirmImport(20L, new ExcelImportConfirmRequest("session-project-a"), "tester")
+        );
+
+        assertEquals("Import session does not belong to project 20", ex.getMessage());
+        verify(testCaseRepository, never()).saveAll(anyList());
+        verify(sectionRepository, never()).save(any(Section.class));
     }
 
     @Test

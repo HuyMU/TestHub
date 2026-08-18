@@ -1,18 +1,11 @@
 package com.testhub.testflowlite.dashboard;
 
-import com.testhub.testflowlite.common.ForbiddenException;
-import com.testhub.testflowlite.common.ResourceNotFoundException;
-import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.milestone.Milestone;
 import com.testhub.testflowlite.milestone.MilestoneRepository;
-import com.testhub.testflowlite.project.Project;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
-import com.testhub.testflowlite.project.ProjectRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.testcase.TestCaseRepository;
 import com.testhub.testflowlite.testcase.TestCaseStatus;
 import com.testhub.testflowlite.testrun.*;
-import com.testhub.testflowlite.user.User;
-import com.testhub.testflowlite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +17,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DashboardService {
 
-    private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
-    private final UserRepository userRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final TestCaseRepository testCaseRepository;
     private final TestRunRepository testRunRepository;
     private final TestRunCaseRepository testRunCaseRepository;
@@ -34,15 +25,7 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardDto getDashboard(Long projectId, String currentUsername) {
-        User user = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + projectId));
-
-        if (user.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
-            throw new ForbiddenException("Access denied: You are not assigned to project #" + projectId);
-        }
+        projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
 
         long totalCases = testCaseRepository.countBySectionProjectId(projectId);
         long readyCases = testCaseRepository.countBySectionProjectIdAndStatus(projectId, TestCaseStatus.READY);

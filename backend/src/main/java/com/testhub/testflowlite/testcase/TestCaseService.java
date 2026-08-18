@@ -4,7 +4,7 @@ import com.testhub.testflowlite.audit.AuditLogService;
 import com.testhub.testflowlite.common.ConflictException;
 import com.testhub.testflowlite.common.ResourceNotFoundException;
 import com.testhub.testflowlite.common.Role;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.project.ProjectRepository;
 import com.testhub.testflowlite.section.Section;
 import com.testhub.testflowlite.section.SectionRepository;
@@ -31,7 +31,7 @@ public class TestCaseService {
     private final TestCaseRepository testCaseRepository;
     private final SectionRepository sectionRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
@@ -304,14 +304,7 @@ public class TestCaseService {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
 
-        User user = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (user.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
-
-        return user;
+        return projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
     }
 
     private TestCaseDto mapToDto(TestCase tc) {

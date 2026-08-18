@@ -3,11 +3,10 @@ package com.testhub.testflowlite.attachment;
 import com.testhub.testflowlite.common.BadRequestException;
 import com.testhub.testflowlite.common.ForbiddenException;
 import com.testhub.testflowlite.common.ResourceNotFoundException;
-import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.execution.ExecutionHistory;
 import com.testhub.testflowlite.execution.ExecutionHistoryRepository;
 import com.testhub.testflowlite.project.Project;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.user.User;
 import com.testhub.testflowlite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,7 @@ public class AttachmentService {
     private final AttachmentRepository attachmentRepository;
     private final UserRepository userRepository;
     private final ExecutionHistoryRepository executionHistoryRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -131,11 +130,10 @@ public class AttachmentService {
                     .orElseThrow(() -> new ResourceNotFoundException("ExecutionHistory not found: " + entityId));
 
             Project project = history.getRunCase().getRun().getProject();
-            boolean isLeader = user.getRole() == Role.LEADER;
             boolean isCreator = project.getCreatedBy() != null && project.getCreatedBy().getId().equals(user.getId());
-            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), user.getId());
+            boolean hasAccess = isCreator || projectAccessGuard.hasProjectAccess(project.getId(), user.getId(), user.getRole());
 
-            if (!isLeader && !isCreator && !isMember) {
+            if (!hasAccess) {
                 throw new ForbiddenException("You do not have access to attachments for this project");
             }
         }

@@ -7,7 +7,7 @@ import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.milestone.Milestone;
 import com.testhub.testflowlite.milestone.MilestoneRepository;
 import com.testhub.testflowlite.project.Project;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.project.ProjectRepository;
 import com.testhub.testflowlite.testcase.TestCase;
 import com.testhub.testflowlite.testcase.TestCaseRepository;
@@ -31,7 +31,7 @@ public class TestRunService {
     private final TestRunRepository testRunRepository;
     private final TestRunCaseRepository testRunCaseRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final MilestoneRepository milestoneRepository;
     private final TestCaseRepository testCaseRepository;
     private final UserRepository userRepository;
@@ -166,7 +166,7 @@ public class TestRunService {
                     throw new IllegalArgumentException("User " + assignedUser.getUsername() + " is disabled");
                 }
 
-                if (assignedUser.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, assignedUser.getId())) {
+                if (!projectAccessGuard.hasProjectAccess(projectId, assignedUser.getId(), assignedUser.getRole())) {
                     throw new IllegalArgumentException("User " + assignedUser.getUsername() + " is not assigned to project " + projectId);
                 }
             }
@@ -199,14 +199,7 @@ public class TestRunService {
             throw new ResourceNotFoundException("Project not found: " + projectId);
         }
 
-        User user = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (user.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
-
-        return user;
+        return projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
     }
 
     private User verifyLeaderAccess(Long projectId, String currentUsername) {

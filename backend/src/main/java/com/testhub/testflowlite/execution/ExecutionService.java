@@ -8,7 +8,7 @@ import com.testhub.testflowlite.common.ConflictException;
 import com.testhub.testflowlite.common.ForbiddenException;
 import com.testhub.testflowlite.common.ResourceNotFoundException;
 import com.testhub.testflowlite.common.Role;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.testcase.TestCase;
 import com.testhub.testflowlite.testcase.TestCaseRepository;
 import com.testhub.testflowlite.testrun.*;
@@ -30,7 +30,7 @@ public class ExecutionService {
     private final ExecutionHistoryRepository executionHistoryRepository;
     private final TestCaseRepository testCaseRepository;
     private final UserRepository userRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final AuditLogService auditLogService;
     private final AttachmentService attachmentService;
 
@@ -154,12 +154,9 @@ public class ExecutionService {
         TestRunCase runCase = testRunCaseRepository.findByRunIdAndCaseId(runId, caseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test case not found in Test Run: " + caseId));
 
-        if (user.getRole() != Role.LEADER) {
-            Long projectId = runCase.getRun().getProject().getId();
-            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId());
-            if (!isMember) {
-                throw new ForbiddenException("You do not have access to this Test Run");
-            }
+        Long projectId = runCase.getRun().getProject().getId();
+        if (!projectAccessGuard.hasProjectAccess(projectId, user.getId(), user.getRole())) {
+            throw new ForbiddenException("You do not have access to this Test Run");
         }
         return runCase;
     }
@@ -170,12 +167,9 @@ public class ExecutionService {
         ExecutionHistory history = executionHistoryRepository.findById(executionHistoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("ExecutionHistory not found: " + executionHistoryId));
 
-        if (user.getRole() != Role.LEADER) {
-            Long projectId = history.getRunCase().getRun().getProject().getId();
-            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId());
-            if (!isMember) {
-                throw new ForbiddenException("You do not have access to this Test Run");
-            }
+        Long projectId = history.getRunCase().getRun().getProject().getId();
+        if (!projectAccessGuard.hasProjectAccess(projectId, user.getId(), user.getRole())) {
+            throw new ForbiddenException("You do not have access to this Test Run");
         }
         return history;
     }

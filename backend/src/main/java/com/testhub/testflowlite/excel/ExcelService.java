@@ -4,22 +4,20 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.testhub.testflowlite.audit.AuditLogService;
 import com.testhub.testflowlite.common.ConflictException;
+import com.testhub.testflowlite.common.ForbiddenException;
 import com.testhub.testflowlite.common.ResourceNotFoundException;
-import com.testhub.testflowlite.common.Role;
 import com.testhub.testflowlite.project.Project;
-import com.testhub.testflowlite.project.ProjectMemberRepository;
+import com.testhub.testflowlite.project.ProjectAccessGuard;
 import com.testhub.testflowlite.project.ProjectRepository;
 import com.testhub.testflowlite.section.Section;
 import com.testhub.testflowlite.section.SectionRepository;
 import com.testhub.testflowlite.testcase.*;
 
 import com.testhub.testflowlite.user.User;
-import com.testhub.testflowlite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,10 +36,9 @@ public class ExcelService {
 
     private final ExcelImportSessionRepository sessionRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessGuard projectAccessGuard;
     private final SectionRepository sectionRepository;
     private final TestCaseRepository testCaseRepository;
-    private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
 
@@ -49,7 +46,7 @@ public class ExcelService {
 
     @Transactional
     public ExcelImportValidateResponse validateImport(Long projectId, MultipartFile file, String currentUsername) throws IOException {
-        User currentUser = verifyProjectAccess(projectId, currentUsername);
+        User currentUser = projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
@@ -105,10 +102,14 @@ public class ExcelService {
 
     @Transactional
     public ExcelImportConfirmResponse confirmImport(Long projectId, ExcelImportConfirmRequest request, String currentUsername) throws IOException {
-        User currentUser = verifyProjectAccess(projectId, currentUsername);
+        User currentUser = projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
 
         ExcelImportSession session = sessionRepository.findByImportSessionId(request.getImportSessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Import session not found: " + request.getImportSessionId()));
+
+        if (!session.getProject().getId().equals(projectId)) {
+            throw new ForbiddenException("Import session does not belong to project " + projectId);
+        }
 
         if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new ConflictException("Import session has expired. Please validate and upload file again.");
@@ -200,7 +201,7 @@ public class ExcelService {
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate(Long projectId, String currentUsername) throws IOException {
-        verifyProjectAccess(projectId, currentUsername);
+        projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Test Cases");
@@ -240,7 +241,7 @@ public class ExcelService {
 
     @Transactional(readOnly = true)
     public byte[] exportCases(Long projectId, List<Long> sectionIds, String currentUsername) throws IOException {
-        User currentUser = verifyProjectAccess(projectId, currentUsername);
+        User currentUser = projectAccessGuard.verifyProjectAccess(projectId, currentUsername);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + projectId));
 
@@ -331,21 +332,6 @@ public class ExcelService {
             workbook.write(out);
             return out.toByteArray();
         }
-    }
-
-    private User verifyProjectAccess(Long projectId, String currentUsername) {
-        if (!projectRepository.existsById(projectId)) {
-            throw new ResourceNotFoundException("Project not found with id: " + projectId);
-        }
-
-        User user = userRepository.findByUsernameOrEmail(currentUsername, currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUsername));
-
-        if (user.getRole() != Role.LEADER && !projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
-            throw new AccessDeniedException("You do not have access to this project");
-        }
-
-        return user;
     }
 
     private ExcelImportRowDto parseAndValidateRow(Row row, int rowNum, String sheetName, SectionPathMode mode) {
