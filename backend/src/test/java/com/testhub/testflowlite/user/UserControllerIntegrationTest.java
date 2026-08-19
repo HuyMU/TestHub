@@ -100,6 +100,68 @@ class UserControllerIntegrationTest {
     }
 
     @Test
+    void testCreateTester_PasswordTooShort_ReturnsBadRequest() throws Exception {
+        CreateUserRequest request = new CreateUserRequest("tester_short", "short@testhub.com", "Short1A", "Short Password");
+
+        mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void testCreateTester_PasswordNoUppercase_ReturnsBadRequest() throws Exception {
+        CreateUserRequest request = new CreateUserRequest("tester_noupper", "noupper@testhub.com", "alllowercase1", "No Upper");
+
+        mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void testCreateTester_PasswordNoDigit_ReturnsBadRequest() throws Exception {
+        CreateUserRequest request = new CreateUserRequest("tester_nodigit", "nodigit@testhub.com", "NoDigitsHere", "No Digit");
+
+        mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void testCreateTester_PasswordValid_Success() throws Exception {
+        CreateUserRequest request = new CreateUserRequest("tester_valid", "valid@testhub.com", "ValidPass1", "Valid Pass Tester");
+
+        mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.username").value("tester_valid"))
+                .andExpect(jsonPath("$.data.role").value("TESTER"));
+    }
+
+    @Test
+    void testChangePassword_NewPasswordTooWeak_ReturnsBadRequest() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest("Tester@123456", "weak");
+
+        mockMvc.perform(put("/api/users/me/password")
+                        .header("Authorization", "Bearer " + testerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     void testCreateTester_ByTester_Forbidden() throws Exception {
         CreateUserRequest request = new CreateUserRequest("tester3", "tester3@testhub.com", "Pass@123456", "Tester Three");
 

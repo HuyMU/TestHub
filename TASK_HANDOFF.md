@@ -6,91 +6,64 @@
 ---
 
 ## 1. Goal
-Implement **Slice 11c: Security Hardening — HttpOnly Refresh-Token Cookie Migration + CORS Restriction**:
-1. Restrict CORS from wildcard (`*`) to exact configured origin (`app.frontend-origin`, defaulting to `http://localhost:3000`) in `CorsConfig.java`.
-2. Move JWT Refresh Token issuance and transmission from client-side `localStorage` to an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`) via `RefreshCookieFactory.java`.
-3. Update `AuthController` and `AuthService`:
-   - `POST /api/auth/login`: sets the `refresh_token` cookie and nulls out `refreshToken` in the JSON response body.
-   - `POST /api/auth/refresh`: reads `refresh_token` from cookie, validates, re-issues cookie with sliding expiration, and returns new access token with `refreshToken: null` in response body.
-   - `POST /api/auth/logout`: new authenticated endpoint clearing the cookie (`Max-Age=0`).
-4. Delete `RefreshTokenRequest.java`.
-5. Update `SecurityConfig.java` to narrow `permitAll()` for auth paths to `/api/auth/login` and `/api/auth/refresh` only, requiring authentication for `/api/auth/logout`.
-6. Frontend updates:
-   - `axiosClient.ts`: `withCredentials: true`, read `accessToken` only from in-memory Zustand store, 401 retry refresh call with credentials and empty body.
-   - `authStore.ts`: in-memory `accessToken`, `user` in `localStorage` for optimistic reload UI, `isInitializing` state, `initializeAuth()` action, and `logout()` sending authenticated POST before clearing local state.
-   - `App.tsx`: bootstrap auth state on mount via `initializeAuth()` and display `LoadingSpinner` container while `isInitializing` is `true`.
-   - `LoginPage.tsx`: update to 2-parameter `setAuth(user, accessToken)`.
+Implement **Slice 11d: Security Hardening — Password Policy & OpenAPI/Swagger Gating**:
+1. Enforce password complexity policy on `CreateUserRequest.password` and `ChangePasswordRequest.newPassword` (minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit via `@Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$")`).
+2. Synchronize client-side password validation rules across `frontend/src/features/users/UserListPage.tsx` (create tester modal) and `frontend/src/features/users/MyAccountModal.tsx` (change password modal) with i18n keys (`passwordMinLength`, `passwordComplexity`) in `en.json`.
+3. Disable Swagger UI and OpenAPI documentation generation in the production profile (`application-prod.yml`) via `springdoc.api-docs.enabled: false` and `springdoc.swagger-ui.enabled: false`.
 
 ## 2. Current Branch & Status
 - **Branch**: `main`
-- **Status**: Complete & Verified (34/34 unit tests pass, `npm run build` pass).
+- **Status**: Complete & Verified (42/42 unit tests pass, `npm run build` pass).
 
 ## 3. Work Completed
 - **Backend**:
-  - `CorsConfig.java`: Bound `@Value("${app.frontend-origin}")` and set `config.setAllowedOrigins(List.of(frontendOrigin))`.
-  - `application.yml` & `application-dev.yml`: Configured `app.frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}` and `app.cookie-secure: ${COOKIE_SECURE:true}` (overridden to `false` in `dev`).
-  - `docker-compose.yml` & `.env.example`: Added `FRONTEND_ORIGIN` environment variable.
-  - `RefreshCookieFactory.java`: Created cookie builder issuing `HttpOnly`, `SameSite=Lax`, path `/api/auth` cookies.
-  - `AuthController.java`: Updated `login`, `refreshToken` (reads `@CookieValue`), and added `logout`.
-  - `AuthService.java`: Updated `refreshToken(String refreshToken)` signature.
-  - `RefreshTokenRequest.java`: Removed.
-  - `SecurityConfig.java`: Narrowed permitAll matchers to `/api/auth/login` and `/api/auth/refresh`.
-  - `TokenResponse.java`: Added `@JsonInclude(JsonInclude.Include.NON_NULL)`.
+  - `CreateUserRequest.java`: Enforced `@Size(min = 8)` and `@Pattern` for uppercase, lowercase, and digit complexity.
+  - `ChangePasswordRequest.java`: Enforced `@Size(min = 8)` and `@Pattern` on `newPassword` (leaving `oldPassword` as `@NotBlank`).
+  - `application-prod.yml`: Added `springdoc.api-docs.enabled: false` and `springdoc.swagger-ui.enabled: false`.
 - **Frontend**:
-  - `authStore.ts`: In-memory `accessToken`, `isInitializing`, `initializeAuth()`, `logout()`.
-  - `axiosClient.ts`: Added `withCredentials: true`, cleaned interceptors.
-  - `LoginPage.tsx`: Updated destructure and `setAuth(user, accessToken)`.
-  - `App.tsx`: Bootstraps auth via `initializeAuth()` on mount with `LoadingSpinner`.
+  - `en.json`: Added `passwordMinLength` and `passwordComplexity` translation keys.
+  - `UserListPage.tsx`: Replaced 6-character rule with `{ min: 8 }` and regex complexity pattern rule.
+  - `MyAccountModal.tsx`: Replaced 6-character rule with `{ min: 8 }` and regex complexity pattern rule.
 - **Tests**:
-  - `AuthControllerUnitTest.java`: 5 unit tests covering login cookie set, refresh cookie validation, missing cookie rejection, logout cookie clearing, and cookie factory properties.
-  - `AuthControllerIntegrationTest.java`: Updated mock assertions for cookie presence and `refreshToken` absence in JSON body.
+  - `UserValidationUnitTest.java`: Added 8 bean validation unit tests for password length and complexity violations on `CreateUserRequest` and `ChangePasswordRequest`.
+  - `UserControllerIntegrationTest.java`: Added 5 test cases testing too short, no uppercase, no digit, valid password creation, and weak password change rejection.
 - **Documentation**:
-  - `CURRENT_STATE.md`: Updated header, Auth matrix row, Section 6 next task, and added AD-31.
-  - `CLAUDE.md`: Added Rule 26.
-  - `api-contracts.md` & `AI_CONTEXT.md`: Synchronized Auth module contracts.
+  - `CURRENT_STATE.md`: Updated Section 6 noting Slice 11 hardening complete, updated checked commit, and added AD-32.
+  - `CLAUDE.md`: Added Rule 27.
+  - `TASK_HANDOFF.md`: Updated with full Slice 11d records.
 
 ## 4. Files Changed
-- `backend/src/main/java/com/testhub/testflowlite/config/CorsConfig.java`
-- `backend/src/main/resources/application.yml`
-- `backend/src/main/resources/application-dev.yml`
-- `docker-compose.yml`
-- `.env.example`
-- `backend/src/main/java/com/testhub/testflowlite/security/RefreshCookieFactory.java` (New)
-- `backend/src/main/java/com/testhub/testflowlite/auth/AuthController.java`
-- `backend/src/main/java/com/testhub/testflowlite/auth/AuthService.java`
-- `backend/src/main/java/com/testhub/testflowlite/auth/TokenResponse.java`
-- `backend/src/main/java/com/testhub/testflowlite/auth/RefreshTokenRequest.java` (Deleted)
-- `backend/src/main/java/com/testhub/testflowlite/config/SecurityConfig.java`
-- `frontend/src/store/authStore.ts`
-- `frontend/src/api/axiosClient.ts`
-- `frontend/src/features/auth/LoginPage.tsx`
-- `frontend/src/App.tsx`
-- `backend/src/test/java/com/testhub/testflowlite/auth/AuthControllerUnitTest.java` (New)
-- `backend/src/test/java/com/testhub/testflowlite/auth/AuthControllerIntegrationTest.java`
+- `backend/src/main/java/com/testhub/testflowlite/user/CreateUserRequest.java`
+- `backend/src/main/java/com/testhub/testflowlite/user/ChangePasswordRequest.java`
+- `backend/src/main/resources/application-prod.yml`
+- `frontend/src/i18n/locales/en.json`
+- `frontend/src/features/users/UserListPage.tsx`
+- `frontend/src/features/users/MyAccountModal.tsx`
+- `backend/src/test/java/com/testhub/testflowlite/user/UserValidationUnitTest.java` (New)
+- `backend/src/test/java/com/testhub/testflowlite/user/UserControllerIntegrationTest.java`
 - `CLAUDE.md`
 - `CURRENT_STATE.md`
-- `docs/architecture/api-contracts.md`
-- `AI_CONTEXT.md`
 - `TASK_HANDOFF.md`
 
 ## 5. Validation Performed
-- **Grep Cleanliness**:
-  - `grep -rn "refreshToken" frontend/src` → **0 matches**.
-  - `grep -rln "RefreshTokenRequest" backend/src` → **0 matches**.
 - **Unit Tests**:
-  - `mvn test -Dtest=AuthControllerUnitTest,GlobalExceptionHandlerUnitTest,JwtTokenProviderUnitTest,ProjectAccessGuardUnitTest,ExcelServiceUnitTest,DashboardServiceUnitTest` → **34/34 unit tests PASS** (0 failures, 0 errors).
+  - `mvn test -Dtest=UserValidationUnitTest,AuthControllerUnitTest,GlobalExceptionHandlerUnitTest,JwtTokenProviderUnitTest,ProjectAccessGuardUnitTest,ExcelServiceUnitTest,DashboardServiceUnitTest` → **42/42 unit tests PASS** (0 failures, 0 errors).
 - **Frontend Build**:
-  - `npm run build` in `frontend/` → **Passed** (0 TypeScript errors, bundle generated in 14.61s).
+  - `npm run build` in `frontend/` → **Passed** (0 TypeScript errors, bundle generated in 54.43s).
+- **Fixtures & Seeder Verification**:
+  - Seeded Leader password `Leader@123456` (13 chars, uppercase, lowercase, digit, symbol) satisfies policy.
+  - Existing test fixtures (`Leader@123456`, `Tester@123456`, `Pass@123456`, `NewPass@123456`) all satisfy the new 8+ char, uppercase, lowercase, and digit complexity rules.
 
 ## 6. Known Issues / Blockers
-- **Testcontainers Integration Tests**: The local Docker daemon on this Windows host is currently stopped/inactive (`Could not find a valid Docker environment`), preventing Testcontainers MySQL container instantiation during full integration test runs. All authentication, cookie creation, and security guard logic is 100% verified via unit tests.
+- **Testcontainers Integration Tests**: The local Docker daemon on this Windows host is currently inactive (`Could not find a valid Docker environment`), preventing Testcontainers MySQL container instantiation during full integration test runs. All password validation logic is 100% verified via `UserValidationUnitTest` (8 tests) and the broader unit test suite (42 tests total).
 
 ## 7. Decisions Made
-- `SameSite=Lax` is standard and safe for same-site deployments (frontend and backend sharing host or differing by port on localhost). If deployed cross-site across different top-level domains in production, `SameSite=None; Secure=true` is required (documented in AD-31).
+- Symbol / special-character requirements were intentionally excluded per requirements (policy strictly requires 8+ characters, at least 1 uppercase, 1 lowercase, and 1 digit).
+- `oldPassword` in `ChangePasswordRequest` is kept as `@NotBlank` only without complexity rules so that users changing a legacy password are not blocked if their prior password was created before this policy.
 
 ## 8. Explicit Next Step
-- Commit changes with message: `fix(security): migrate refresh token to httpOnly cookie, restrict CORS to exact frontend origin`
-- Proceed to Slice 11d: Password complexity enforcement and OpenAPI/Swagger profile gating.
+- Commit changes with message: `fix(security): enforce password complexity policy and disable Swagger/OpenAPI in production profile`
+- Proceed with roadmap feature slices or sprint review tasks.
 
 ## 9. Context Files to Re-Read
 - [CLAUDE.md](./CLAUDE.md)

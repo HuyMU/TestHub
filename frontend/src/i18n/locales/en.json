@@ -67,6 +67,8 @@
     "actions": "Actions",
     "edit": "Edit",
     "passwordChanged": "Password changed successfully",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "passwordComplexity": "Password must contain at least one uppercase letter, one lowercase letter, and one digit",
     "createdSuccess": "Tester account created successfully",
     "updatedSuccess": "Tester account updated successfully"
   },

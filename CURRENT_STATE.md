@@ -4,7 +4,7 @@
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
 - **Last Updated**: 2026-08-19
-- **Checked Commit**: `296e07d` (Branch: `main`)
+- **Checked Commit**: `12b32a2` (Branch: `main`)
 
 ---
 
@@ -88,16 +88,15 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 11d: Security Hardening — Password Policy & OpenAPI/Swagger Gating**
+**Slice 11 Hardening Pass Complete**
 
-- **Completed in Slice 11c**:
-  1. **HttpOnly Refresh Token Cookie**: Migrated refresh token out of `localStorage` into an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`).
-  2. **In-Memory Access Token Flow**: Updated frontend store (`authStore.ts`) to keep `accessToken` in-memory only, with automatic bootstrap refresh on app load (`App.tsx`) and 401 retry handling via `axiosClient.ts`.
-  3. **Strict CORS Configuration**: Configured `CorsConfig` to allow only the exact configured frontend origin (`app.frontend-origin`, defaulting to `http://localhost:3000`).
-  4. **Authenticated Logout Endpoint**: Added `POST /api/auth/logout` requiring authentication and clearing the refresh token cookie (`Max-Age=0`).
+- **Completed in Slice 11 (11a–11d)**:
+  1. **Slice 11a**: Leaked JWT fallback secret removed from source code, production fail-fast configured in `application-prod.yml`, and runtime default warning added to `JwtTokenProvider`.
+  2. **Slice 11b**: Sanitized generic exception handler in `GlobalExceptionHandler` (`log.error` + fixed safe message), and `server.error.include-message` gated to `application-dev.yml`.
+  3. **Slice 11c**: Migrated JWT refresh token to `HttpOnly`, `SameSite=Lax`, path-scoped cookie (`/api/auth`), kept access token in-memory, restricted CORS to exact frontend origin, and added authenticated `POST /api/auth/logout`.
+  4. **Slice 11d**: Enforced password complexity policy (8+ chars, uppercase, lowercase, digit) on backend DTOs (`CreateUserRequest`, `ChangePasswordRequest`) and frontend forms (`UserListPage.tsx`, `MyAccountModal.tsx`), and disabled Swagger UI / OpenAPI in production profile (`application-prod.yml`).
 - **Recommended Next Priorities**:
-  1. **Slice 11d**: Password complexity enforcement (`CreateUserRequest`, `ChangePasswordRequest`, and frontend forms) and OpenAPI/Swagger profile gating.
-  2. **Integration Suite Health**: Run full Testcontainers suite when local Docker daemon is active.
+  - The security hardening pass (Slice 11) is now complete. No further hardening items are currently queued. Subsequent tasks should focus on feature roadmap items or integration test suite execution when Docker is available.
 
 ---
 
@@ -143,3 +142,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 29. **JWT Secret Security Hardening (2026-08-19)**: Eliminated hardcoded leaked fallback secret from source code in `JwtConfig.java`, `docker-compose.yml`, and `.env.example`. Configured `application-prod.yml` with `jwt.secret: ${JWT_SECRET}` (no fallback) ensuring Spring Boot fails fast at startup if `JWT_SECRET` is unset in production. Added `@PostConstruct` safety check in `JwtTokenProvider` to emit a prominent log warning when the known default repository secret is detected. Preserved dev/test fallback in `application.yml` for local unit and integration testing workflows. Verified with `JwtTokenProviderUnitTest` and observed fail-fast property resolution error under prod profile.
 30. **Sanitized Generic Error Responses & Profile-Gated Error Messages (2026-08-19)**: Hardened `GlobalExceptionHandler.handleGenericException` to log unhandled exceptions with full stack traces via `log.error("Unhandled exception", ex)` while returning a fixed, sanitized client response message (`"An unexpected error occurred. Please try again or contact support."`), preventing leakage of internal SQL errors, entity details, or stack trace fragments. Removed `server.error.include-message: always` from base `application.yml` (falling back to Spring Boot's safe default `never` for production and other profiles) and gated it exclusively inside `application-dev.yml` for developer convenience. Verified via `GlobalExceptionHandlerUnitTest`.
 31. **HttpOnly Refresh Token Cookie Migration & CORS Exact Origin (2026-08-19)**: Migrated JWT refresh token from client-side `localStorage` to an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`). Access tokens are maintained in-memory in `authStore.ts` and refreshed on page bootstrap (`initializeAuth()`) in `App.tsx` and on 401 interceptor retries via `axiosClient.ts`. Restricted `CorsConfig` from wildcard pattern to exact origin match (`app.frontend-origin`, defaulting to `http://localhost:3000`). Added authenticated `POST /api/auth/logout` endpoint clearing the refresh token cookie (`Max-Age=0`). *Production Deployment Note*: If frontend and backend are hosted on genuinely different registrable domains (cross-site) in production, `SameSite=Lax` cookies will not be sent on cross-origin XHR, requiring `SameSite=None; Secure=true` configuration with strict CORS origin.
+32. **Password Complexity Policy & OpenAPI/Swagger Production Gating (2026-08-19)**: Enforced password complexity requirement (minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit via `@Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$")`) on `CreateUserRequest.password` and `ChangePasswordRequest.newPassword`. Synchronized client-side form validation rules in `UserListPage.tsx` and `MyAccountModal.tsx` with dedicated i18n keys (`passwordMinLength`, `passwordComplexity`). Disabled Swagger UI and OpenAPI documentation generation in the production profile (`application-prod.yml`) via `springdoc.api-docs.enabled: false` and `springdoc.swagger-ui.enabled: false`.

@@ -184,7 +184,11 @@ export const UserListPage: React.FC = () => {
             label={t('user.password')}
             rules={[
               { required: true, message: t('common.required') },
-              { min: 6, message: 'Password must be at least 6 characters' },
+              { min: 8, message: t('user.passwordMinLength') },
+              {
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+                message: t('user.passwordComplexity'),
+              },
             ]}
           >
             <Input.Password />
