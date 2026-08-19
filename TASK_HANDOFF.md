@@ -6,59 +6,91 @@
 ---
 
 ## 1. Goal
-Implement **Slice 11b: Security Hardening — Stop Leaking Exception Details**:
-1. Update `GlobalExceptionHandler.handleGenericException` to log unhandled exceptions with full stack traces using `log.error("Unhandled exception", ex)` and return a safe generic message (`"An unexpected error occurred. Please try again or contact support."`) without concatenating `ex.getMessage()` into client responses.
-2. Remove `server.error.include-message: always` from base `application.yml` (falling back to Spring Boot's default `never` for production and non-dev profiles).
-3. Add `server.error.include-message: always` to `application-dev.yml` for local developer convenience.
+Implement **Slice 11c: Security Hardening — HttpOnly Refresh-Token Cookie Migration + CORS Restriction**:
+1. Restrict CORS from wildcard (`*`) to exact configured origin (`app.frontend-origin`, defaulting to `http://localhost:3000`) in `CorsConfig.java`.
+2. Move JWT Refresh Token issuance and transmission from client-side `localStorage` to an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`) via `RefreshCookieFactory.java`.
+3. Update `AuthController` and `AuthService`:
+   - `POST /api/auth/login`: sets the `refresh_token` cookie and nulls out `refreshToken` in the JSON response body.
+   - `POST /api/auth/refresh`: reads `refresh_token` from cookie, validates, re-issues cookie with sliding expiration, and returns new access token with `refreshToken: null` in response body.
+   - `POST /api/auth/logout`: new authenticated endpoint clearing the cookie (`Max-Age=0`).
+4. Delete `RefreshTokenRequest.java`.
+5. Update `SecurityConfig.java` to narrow `permitAll()` for auth paths to `/api/auth/login` and `/api/auth/refresh` only, requiring authentication for `/api/auth/logout`.
+6. Frontend updates:
+   - `axiosClient.ts`: `withCredentials: true`, read `accessToken` only from in-memory Zustand store, 401 retry refresh call with credentials and empty body.
+   - `authStore.ts`: in-memory `accessToken`, `user` in `localStorage` for optimistic reload UI, `isInitializing` state, `initializeAuth()` action, and `logout()` sending authenticated POST before clearing local state.
+   - `App.tsx`: bootstrap auth state on mount via `initializeAuth()` and display `LoadingSpinner` container while `isInitializing` is `true`.
+   - `LoginPage.tsx`: update to 2-parameter `setAuth(user, accessToken)`.
 
 ## 2. Current Branch & Status
 - **Branch**: `main`
-- **Status**: Complete & Verified (29/29 unit tests pass, `npm run build` pass).
+- **Status**: Complete & Verified (34/34 unit tests pass, `npm run build` pass).
 
 ## 3. Work Completed
-- **`GlobalExceptionHandler.java` (`com.testhub.testflowlite.common`)**:
-  - Added `@Slf4j` and updated `handleGenericException(Exception ex)`:
-    ```java
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        log.error("Unhandled exception", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("An unexpected error occurred. Please try again or contact support."));
-    }
-    ```
-- **`application.yml`**:
-  - Cleaned `server:` block to remove `error.include-message: always`.
-- **`application-dev.yml`**:
-  - Added `server.error.include-message: always` strictly scoped to the `dev` profile.
-- **`GlobalExceptionHandlerUnitTest.java` (New)**:
-  - Created unit tests verifying `handleGenericException` does not leak sensitive exception details (SQL error messages, table names, usernames) and returns the fixed generic message, as well as testing `handleNotFound` and `handleForbidden`.
+- **Backend**:
+  - `CorsConfig.java`: Bound `@Value("${app.frontend-origin}")` and set `config.setAllowedOrigins(List.of(frontendOrigin))`.
+  - `application.yml` & `application-dev.yml`: Configured `app.frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}` and `app.cookie-secure: ${COOKIE_SECURE:true}` (overridden to `false` in `dev`).
+  - `docker-compose.yml` & `.env.example`: Added `FRONTEND_ORIGIN` environment variable.
+  - `RefreshCookieFactory.java`: Created cookie builder issuing `HttpOnly`, `SameSite=Lax`, path `/api/auth` cookies.
+  - `AuthController.java`: Updated `login`, `refreshToken` (reads `@CookieValue`), and added `logout`.
+  - `AuthService.java`: Updated `refreshToken(String refreshToken)` signature.
+  - `RefreshTokenRequest.java`: Removed.
+  - `SecurityConfig.java`: Narrowed permitAll matchers to `/api/auth/login` and `/api/auth/refresh`.
+  - `TokenResponse.java`: Added `@JsonInclude(JsonInclude.Include.NON_NULL)`.
+- **Frontend**:
+  - `authStore.ts`: In-memory `accessToken`, `isInitializing`, `initializeAuth()`, `logout()`.
+  - `axiosClient.ts`: Added `withCredentials: true`, cleaned interceptors.
+  - `LoginPage.tsx`: Updated destructure and `setAuth(user, accessToken)`.
+  - `App.tsx`: Bootstraps auth via `initializeAuth()` on mount with `LoadingSpinner`.
+- **Tests**:
+  - `AuthControllerUnitTest.java`: 5 unit tests covering login cookie set, refresh cookie validation, missing cookie rejection, logout cookie clearing, and cookie factory properties.
+  - `AuthControllerIntegrationTest.java`: Updated mock assertions for cookie presence and `refreshToken` absence in JSON body.
 - **Documentation**:
-  - `CLAUDE.md`: Added Rule 25.
-  - `CURRENT_STATE.md`: Added AD-30 and updated Section 6 next priorities.
+  - `CURRENT_STATE.md`: Updated header, Auth matrix row, Section 6 next task, and added AD-31.
+  - `CLAUDE.md`: Added Rule 26.
+  - `api-contracts.md` & `AI_CONTEXT.md`: Synchronized Auth module contracts.
 
 ## 4. Files Changed
-- `backend/src/main/java/com/testhub/testflowlite/common/GlobalExceptionHandler.java`
+- `backend/src/main/java/com/testhub/testflowlite/config/CorsConfig.java`
 - `backend/src/main/resources/application.yml`
 - `backend/src/main/resources/application-dev.yml`
-- `backend/src/test/java/com/testhub/testflowlite/common/GlobalExceptionHandlerUnitTest.java` (New)
+- `docker-compose.yml`
+- `.env.example`
+- `backend/src/main/java/com/testhub/testflowlite/security/RefreshCookieFactory.java` (New)
+- `backend/src/main/java/com/testhub/testflowlite/auth/AuthController.java`
+- `backend/src/main/java/com/testhub/testflowlite/auth/AuthService.java`
+- `backend/src/main/java/com/testhub/testflowlite/auth/TokenResponse.java`
+- `backend/src/main/java/com/testhub/testflowlite/auth/RefreshTokenRequest.java` (Deleted)
+- `backend/src/main/java/com/testhub/testflowlite/config/SecurityConfig.java`
+- `frontend/src/store/authStore.ts`
+- `frontend/src/api/axiosClient.ts`
+- `frontend/src/features/auth/LoginPage.tsx`
+- `frontend/src/App.tsx`
+- `backend/src/test/java/com/testhub/testflowlite/auth/AuthControllerUnitTest.java` (New)
+- `backend/src/test/java/com/testhub/testflowlite/auth/AuthControllerIntegrationTest.java`
 - `CLAUDE.md`
 - `CURRENT_STATE.md`
+- `docs/architecture/api-contracts.md`
+- `AI_CONTEXT.md`
 - `TASK_HANDOFF.md`
 
 ## 5. Validation Performed
-- **Grep Verification**: `grep -rn "An unexpected error occurred: \"" backend/src/main` → **0 matches** (confirms the string-concatenation leak pattern is gone).
-- **Unit Tests**: `mvn test -Dtest=GlobalExceptionHandlerUnitTest,JwtTokenProviderUnitTest,ProjectAccessGuardUnitTest,ExcelServiceUnitTest,DashboardServiceUnitTest` → **29/29 unit tests PASS** (0 failures, 0 errors).
-- **Frontend Build**: `npm run build` in `frontend/` → **Passed** (0 TypeScript errors, bundle generated in 54.46s).
+- **Grep Cleanliness**:
+  - `grep -rn "refreshToken" frontend/src` → **0 matches**.
+  - `grep -rln "RefreshTokenRequest" backend/src` → **0 matches**.
+- **Unit Tests**:
+  - `mvn test -Dtest=AuthControllerUnitTest,GlobalExceptionHandlerUnitTest,JwtTokenProviderUnitTest,ProjectAccessGuardUnitTest,ExcelServiceUnitTest,DashboardServiceUnitTest` → **34/34 unit tests PASS** (0 failures, 0 errors).
+- **Frontend Build**:
+  - `npm run build` in `frontend/` → **Passed** (0 TypeScript errors, bundle generated in 14.61s).
 
 ## 6. Known Issues / Blockers
-- **Testcontainers Integration Tests**: Running the full `mvn clean test` fails at container startup because the local Windows Docker daemon is not active (`Could not find a valid Docker environment`). All business and security logic is verified via the Mockito unit test suite (29/29 passing).
+- **Testcontainers Integration Tests**: The local Docker daemon on this Windows host is currently stopped/inactive (`Could not find a valid Docker environment`), preventing Testcontainers MySQL container instantiation during full integration test runs. All authentication, cookie creation, and security guard logic is 100% verified via unit tests.
 
 ## 7. Decisions Made
-- All specific domain exception handlers (`ResourceNotFoundException`, `ForbiddenException`, `MethodArgumentNotValidException`, etc.) were left intact because they produce intentional, validated user-facing messages. Only the catch-all `Exception.class` handler is sanitized to prevent unvetted exception messages from reaching the client.
+- `SameSite=Lax` is standard and safe for same-site deployments (frontend and backend sharing host or differing by port on localhost). If deployed cross-site across different top-level domains in production, `SameSite=None; Secure=true` is required (documented in AD-31).
 
 ## 8. Explicit Next Step
-- Commit changes with message: `fix(security): stop leaking exception details in generic error handler, gate include-message to dev profile`
-- Proceed to Slice 11c: CORS restriction, HTTP-only Cookie migration for JWT Refresh Token, and password complexity enforcement.
+- Commit changes with message: `fix(security): migrate refresh token to httpOnly cookie, restrict CORS to exact frontend origin`
+- Proceed to Slice 11d: Password complexity enforcement and OpenAPI/Swagger profile gating.
 
 ## 9. Context Files to Re-Read
 - [CLAUDE.md](./CLAUDE.md)

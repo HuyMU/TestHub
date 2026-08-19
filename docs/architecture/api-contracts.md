@@ -12,8 +12,9 @@
 
 | Method | Endpoint | Request Body | Response Payload | Auth | Description |
 |---|---|---|---|---|---|
-| POST | `/api/auth/login` | `LoginRequest` (username/email, password) | `ApiResponse<TokenResponse>` (accessToken, refreshToken, user) | Public | User authentication |
-| POST | `/api/auth/refresh` | `RefreshTokenRequest` (refreshToken) | `ApiResponse<TokenResponse>` | Public | Issue new access token |
+| POST | `/api/auth/login` | `LoginRequest` (username/email, password) | `ApiResponse<TokenResponse>` (accessToken, user; sets `refresh_token` HttpOnly cookie) | Public | User authentication |
+| POST | `/api/auth/refresh` | - (`refresh_token` HttpOnly cookie) | `ApiResponse<TokenResponse>` (accessToken, user; re-issues `refresh_token` cookie) | Public | Issue new access token via cookie |
+| POST | `/api/auth/logout` | - | `ApiResponse<Void>` (clears `refresh_token` cookie) | Authenticated | Logout and clear refresh cookie |
 
 ---
 

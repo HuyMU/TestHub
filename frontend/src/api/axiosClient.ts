@@ -6,11 +6,12 @@ const axiosClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().accessToken || localStorage.getItem('access_token');
+    const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -53,13 +54,6 @@ axiosClient.interceptors.response.use(
 
       originalRequest._retry = true;
 
-      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('refresh_token');
-
-      if (!refreshToken) {
-        useAuthStore.getState().logout();
-        return Promise.reject(error);
-      }
-
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -76,12 +70,13 @@ axiosClient.interceptors.response.use(
       try {
         const response: any = await axios.post(
           `${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/refresh`,
-          { refreshToken }
+          {},
+          { withCredentials: true }
         );
 
         if (response.data && response.data.success && response.data.data) {
-          const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
-          useAuthStore.getState().setAuth(user, accessToken, newRefreshToken);
+          const { accessToken, user } = response.data.data;
+          useAuthStore.getState().setAuth(user, accessToken);
           processQueue(null, accessToken);
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return axiosClient(originalRequest);

@@ -25,8 +25,8 @@ export const LoginPage: React.FC = () => {
       });
 
       if (response && response.success && response.data) {
-        const { accessToken, refreshToken, user } = response.data;
-        setAuth(user, accessToken, refreshToken);
+        const { accessToken, user } = response.data;
+        setAuth(user, accessToken);
         navigate('/dashboard', { replace: true });
       } else {
         setErrorMessage(response.message || t('auth.invalidCredentials'));

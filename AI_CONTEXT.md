@@ -102,8 +102,9 @@ erDiagram
 
 | Method | Endpoint | Description | Role Required | Status |
 |---|---|---|---|:---:|
-| POST | `/api/auth/login` | User login (JWT Access + Refresh token) | Public | ✅ Implemented (Slice 1) |
-| POST | `/api/auth/refresh` | Refresh access token | Public | ✅ Implemented (Slice 1) |
+| POST | `/api/auth/login` | User login (JWT Access in body + Refresh token HttpOnly cookie) | Public | ✅ Implemented (Slice 1, 11c) |
+| POST | `/api/auth/refresh` | Refresh access token via HttpOnly cookie | Public | ✅ Implemented (Slice 1, 11c) |
+| POST | `/api/auth/logout` | Logout and clear refresh token cookie | Authenticated | ✅ Implemented (Slice 11c) |
 | GET | `/api/users/me` | Fetch current authenticated user info | Authenticated | ✅ Implemented (Slice 1) |
 | PUT | `/api/users/me/password` | Change current user password | Authenticated | ✅ Implemented (Slice 1) |
 | GET/POST | `/api/users` | List / Create Tester accounts | Leader | ✅ Implemented (Slice 1) |

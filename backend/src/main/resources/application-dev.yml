@@ -5,3 +5,6 @@ spring:
 server:
   error:
     include-message: always
+
+app:
+  cookie-secure: false

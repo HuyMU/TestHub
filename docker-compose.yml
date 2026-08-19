@@ -40,6 +40,7 @@ services:
       SEED_LEADER_EMAIL: ${SEED_LEADER_EMAIL:-leader@testhub.com}
       SEED_LEADER_PASSWORD: ${SEED_LEADER_PASSWORD:-Leader@123456}
       UPLOAD_DIR: /uploads
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:

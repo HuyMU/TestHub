@@ -42,6 +42,8 @@ jwt:
 
 app:
   upload-dir: ${UPLOAD_DIR:./uploads}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}
+  cookie-secure: ${COOKIE_SECURE:true}
 
 springdoc:
   api-docs:

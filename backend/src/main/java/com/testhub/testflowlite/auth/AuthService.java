@@ -52,12 +52,12 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public ApiResponse<TokenResponse> refreshToken(RefreshTokenRequest request) {
-        if (!jwtTokenProvider.validateRefreshToken(request.getRefreshToken())) {
+    public ApiResponse<TokenResponse> refreshToken(String refreshToken) {
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
             throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
 
-        String username = jwtTokenProvider.getUsernameFromToken(request.getRefreshToken());
+        String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new InvalidCredentialsException("User not found for token"));
 
@@ -68,6 +68,6 @@ public class AuthService {
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getRole().name());
         UserDto userDto = userService.mapToDto(user);
 
-        return ApiResponse.success("Token refreshed successfully", new TokenResponse(newAccessToken, request.getRefreshToken(), userDto));
+        return ApiResponse.success("Token refreshed successfully", new TokenResponse(newAccessToken, refreshToken, userDto));
     }
 }

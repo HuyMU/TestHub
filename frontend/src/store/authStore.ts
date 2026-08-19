@@ -1,40 +1,76 @@
 import { create } from 'zustand';
+import axios from 'axios';
 import { User } from '../types';
 
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  isInitializing: boolean;
+  setAuth: (user: User, accessToken: string) => void;
   updateUser: (user: User) => void;
   logout: () => void;
+  initializeAuth: () => Promise<void>;
 }
 
 const savedUser = localStorage.getItem('user_info');
 const initialUser: User | null = savedUser ? JSON.parse(savedUser) : null;
-const initialAccessToken = localStorage.getItem('access_token');
-const initialRefreshToken = localStorage.getItem('refresh_token');
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: initialUser,
-  accessToken: initialAccessToken,
-  refreshToken: initialRefreshToken,
-  isAuthenticated: !!(initialAccessToken && initialUser),
-  setAuth: (user, accessToken, refreshToken) => {
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
+  accessToken: null,
+  isAuthenticated: false,
+  isInitializing: true,
+
+  setAuth: (user, accessToken) => {
     localStorage.setItem('user_info', JSON.stringify(user));
-    set({ user, accessToken, refreshToken, isAuthenticated: true });
+    set({ user, accessToken, isAuthenticated: true });
   },
+
   updateUser: (user) => {
     localStorage.setItem('user_info', JSON.stringify(user));
     set({ user });
   },
-  logout: () => {
+
+  logout: async () => {
+    const token = get().accessToken;
+    if (token) {
+      try {
+        await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/logout`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+          }
+        );
+      } catch {
+        // Ignore backend logout errors - local state must always be cleared
+      }
+    }
+    localStorage.removeItem('user_info');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_info');
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+    set({ user: null, accessToken: null, isAuthenticated: false });
+  },
+
+  initializeAuth: async () => {
+    try {
+      const response: any = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
+      if (response.data && response.data.success && response.data.data) {
+        const { accessToken, user } = response.data.data;
+        get().setAuth(user, accessToken);
+      } else {
+        await get().logout();
+      }
+    } catch {
+      await get().logout();
+    } finally {
+      set({ isInitializing: false });
+    }
   },
 }));

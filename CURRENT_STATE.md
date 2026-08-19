@@ -3,8 +3,8 @@
 > [!IMPORTANT]
 > This document is the Single Source of Truth for the **actual implementation status** of TestFlow Lite. Every developer and AI agent MUST update this file alongside feature commits whenever a module status changes.
 
-- **Last Updated**: 2026-08-18
-- **Checked Commit**: `22b65e7` (Branch: `main`)
+- **Last Updated**: 2026-08-19
+- **Checked Commit**: `296e07d` (Branch: `main`)
 
 ---
 
@@ -18,7 +18,7 @@ TestFlow Lite (TestHub) is a lightweight, high-efficiency Test Case management a
 
 | Module | Status | Summary & Verification |
 |---|:---:|---|
-| **Auth** | `Complete` | JWT Access + Refresh token flow, login via username/email, 401 automatic token refresh interceptor, `DisabledException` (403) handling. `JwtAuthFilter` checks `userDetails.isEnabled()`, returning 401 for deactivated accounts. |
+| **Auth** | `Complete` | JWT Access (in-memory) + HttpOnly Refresh Token cookie (`refresh_token`, path `/api/auth`, SameSite=Lax), exact origin CORS restriction, login via username/email, 401 automatic token refresh interceptor with credentials, authenticated `/api/auth/logout` cookie clearing, `DisabledException` (403) handling. `JwtAuthFilter` checks `userDetails.isEnabled()`, returning 401 for deactivated accounts. |
 | **Users** | `Complete` | Single Leader seed via `LeaderSeeder`, Leader CRUD & active status toggle for Testers, Leader update target protection (404), personal password change, user profile `/api/users/me`. |
 | **Projects** | `Complete` | Leader CRUD for Projects (Name, Description, Status [Active/Archived]), role-aware project visibility (Leader sees all, Tester sees assigned), member assignment/removal for active Testers, Leader member assignment rejection (400). |
 | **Sections** | `Complete` | Hierarchical Section & Subsection tree CRUD, drag-and-drop / batch reordering with UI client-side circular drop prevention, batch count queries resolving N+1 performance issue, circular reference checks, assigned Tester edit permissions, Leader-only delete guard returning 409 Conflict if section has child subsections or test cases. |
@@ -88,13 +88,15 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Slice 11c: Security Hardening — CORS, Cookie Security & Password Policy**
+**Slice 11d: Security Hardening — Password Policy & OpenAPI/Swagger Gating**
 
-- **Completed in Slice 11b**:
-  1. **Sanitized Generic Error Handler**: Updated `GlobalExceptionHandler.handleGenericException` to log unhandled exceptions with full stack traces via `log.error` and return a safe generic message (`"An unexpected error occurred. Please try again or contact support."`) without interpolating `ex.getMessage()` into client responses.
-  2. **Error Message Inclusion Profile Gating**: Removed `server.error.include-message: always` from base `application.yml` (defaulting to safe `never` for production/staging) and placed it strictly in `application-dev.yml` for local developer convenience.
+- **Completed in Slice 11c**:
+  1. **HttpOnly Refresh Token Cookie**: Migrated refresh token out of `localStorage` into an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`).
+  2. **In-Memory Access Token Flow**: Updated frontend store (`authStore.ts`) to keep `accessToken` in-memory only, with automatic bootstrap refresh on app load (`App.tsx`) and 401 retry handling via `axiosClient.ts`.
+  3. **Strict CORS Configuration**: Configured `CorsConfig` to allow only the exact configured frontend origin (`app.frontend-origin`, defaulting to `http://localhost:3000`).
+  4. **Authenticated Logout Endpoint**: Added `POST /api/auth/logout` requiring authentication and clearing the refresh token cookie (`Max-Age=0`).
 - **Recommended Next Priorities**:
-  1. **Slice 11c**: CORS restriction, HTTP-only Cookie migration for JWT Refresh Token, and password complexity enforcement.
+  1. **Slice 11d**: Password complexity enforcement (`CreateUserRequest`, `ChangePasswordRequest`, and frontend forms) and OpenAPI/Swagger profile gating.
   2. **Integration Suite Health**: Run full Testcontainers suite when local Docker daemon is active.
 
 ---
@@ -140,3 +142,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 28. **Project Existence Check in ProjectAccessGuard (2026-08-18)**: Restored centralized project existence verification inside `ProjectAccessGuard.verifyProjectAccess` (`if (!projectRepository.existsById(projectId)) throw new ResourceNotFoundException("Project not found: " + projectId)`). Resolves regression introduced during access control consolidation where `DashboardService.getDashboard`, `ExcelService.generateTemplate`, and `ExcelService.validateImport` lost existence validation when called by Leaders or Testers on non-existent project IDs. `hasProjectAccess` intentionally omits the check to maintain zero overhead on already-resolved entity paths. Verified with 22 unit tests across `ProjectAccessGuardUnitTest`, `ExcelServiceUnitTest`, and `DashboardServiceUnitTest`.
 29. **JWT Secret Security Hardening (2026-08-19)**: Eliminated hardcoded leaked fallback secret from source code in `JwtConfig.java`, `docker-compose.yml`, and `.env.example`. Configured `application-prod.yml` with `jwt.secret: ${JWT_SECRET}` (no fallback) ensuring Spring Boot fails fast at startup if `JWT_SECRET` is unset in production. Added `@PostConstruct` safety check in `JwtTokenProvider` to emit a prominent log warning when the known default repository secret is detected. Preserved dev/test fallback in `application.yml` for local unit and integration testing workflows. Verified with `JwtTokenProviderUnitTest` and observed fail-fast property resolution error under prod profile.
 30. **Sanitized Generic Error Responses & Profile-Gated Error Messages (2026-08-19)**: Hardened `GlobalExceptionHandler.handleGenericException` to log unhandled exceptions with full stack traces via `log.error("Unhandled exception", ex)` while returning a fixed, sanitized client response message (`"An unexpected error occurred. Please try again or contact support."`), preventing leakage of internal SQL errors, entity details, or stack trace fragments. Removed `server.error.include-message: always` from base `application.yml` (falling back to Spring Boot's safe default `never` for production and other profiles) and gated it exclusively inside `application-dev.yml` for developer convenience. Verified via `GlobalExceptionHandlerUnitTest`.
+31. **HttpOnly Refresh Token Cookie Migration & CORS Exact Origin (2026-08-19)**: Migrated JWT refresh token from client-side `localStorage` to an `HttpOnly`, `SameSite=Lax`, path-scoped (`/api/auth`) cookie (`refresh_token`). Access tokens are maintained in-memory in `authStore.ts` and refreshed on page bootstrap (`initializeAuth()`) in `App.tsx` and on 401 interceptor retries via `axiosClient.ts`. Restricted `CorsConfig` from wildcard pattern to exact origin match (`app.frontend-origin`, defaulting to `http://localhost:3000`). Added authenticated `POST /api/auth/logout` endpoint clearing the refresh token cookie (`Max-Age=0`). *Production Deployment Note*: If frontend and backend are hosted on genuinely different registrable domains (cross-site) in production, `SameSite=Lax` cookies will not be sent on cross-origin XHR, requiring `SameSite=None; Secure=true` configuration with strict CORS origin.
