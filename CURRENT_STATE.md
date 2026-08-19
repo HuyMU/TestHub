@@ -88,14 +88,15 @@ docker-compose up -d --build
 
 ## 6. Recommended Next Task
 
-**Phase 2 Planning / Advanced QA Workflows**
+**Slice 11b: Security Hardening — CORS, Cookie Security & Password Policy**
 
-- **Completed in Slice 10**:
-  1. **Access Control Consolidation**: Centralized project membership and Leader-bypass checks across 9 backend services (`AttachmentService`, `MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `DashboardService`, `TestRunService`, `TestCaseService`, `ExecutionService`) into a unified `ProjectAccessGuard` component.
-  2. **Excel Import Session Project Match Verification**: In `ExcelService.confirmImport()`, added guard verifying `session.getProject().getId().equals(projectId)` to prevent cross-project session confirmation.
+- **Completed in Slice 11a**:
+  1. **JWT Secret Hardening**: Removed hardcoded leaked fallback secret from `JwtConfig.java`, `docker-compose.yml`, and `.env.example`.
+  2. **Production Fail-Fast**: Configured `application-prod.yml` with `jwt.secret: ${JWT_SECRET}` (no fallback) to guarantee fail-fast startup when secret is unset in production.
+  3. **Safety-Net Warning**: Added `@PostConstruct` in `JwtTokenProvider` to emit a prominent log warning whenever the known default repository secret is in use.
 - **Recommended Next Priorities**:
-  1. **HTTP-only Cookie Migration**: Migrate JWT Refresh Token storage from `localStorage` to secure HTTP-only cookies.
-  2. **Testcontainers / Integration Suite Health**: Run full integration test suite when local Docker daemon is active.
+  1. **Slice 11b**: CORS restriction, HTTP-only Cookie migration for JWT Refresh Token, and password complexity enforcement.
+  2. **Integration Suite Health**: Run full Testcontainers suite when local Docker daemon is active.
 
 ---
 
@@ -138,3 +139,4 @@ Whenever an AI agent completes a task that alters feature implementations or sta
 26. **Excel Full Section Path Import & Backward Compatibility (2026-08-11)**: Redesigned Excel import section resolution to use full section paths in Column A (`Section Path` header, e.g. `Payment > Checkout > Validation`) independent of sheet tab names. Blank Column A cells map to default root Section `Uncategorized`. Format is detected per-sheet based on row 0 cell A0: header `Subsection Path` triggers per-sheet **LEGACY MODE** (sheet name = root section, Column A = relative path), while any other text (including `Section Path`) triggers **FULL_PATH MODE**. Export outputs full section path in Column A including root section name, guaranteeing 100% round-trip section alignment even for truncated sheet names (>31 chars). Disabled "Add Test Case" button in frontend `TestCaseList.tsx` with Tooltip when `sections.length === 0`. Verified via `ExcelServiceUnitTest` (5 unit tests pass) and `ExcelControllerIntegrationTest`.
 27. **Access Control Consolidation & Import Session Project Guard (2026-08-18)**: Centralized project-level membership checks across 9 backend services (`MilestoneService`, `ProjectService`, `SectionService`, `ExcelService`, `TestCaseService`, `DashboardService`, `TestRunService`, `ExecutionService`, `AttachmentService`) into `ProjectAccessGuard` (`verifyProjectAccess` returning resolved `User` or throwing HTTP 403 `ForbiddenException`, and `hasProjectAccess(projectId, userId, role)` for boolean composition). Added strict project verification in `ExcelService.confirmImport()` (`session.getProject().getId().equals(projectId)`) to prevent cross-project import session confirmation. Direct queries to `projectMemberRepository.existsByProjectIdAndUserId` eliminated across all service call sites except `ProjectService.assignMembers` (pre-insert duplication check). Verified with 13 unit tests across `ProjectAccessGuardUnitTest` and `ExcelServiceUnitTest`.
 28. **Project Existence Check in ProjectAccessGuard (2026-08-18)**: Restored centralized project existence verification inside `ProjectAccessGuard.verifyProjectAccess` (`if (!projectRepository.existsById(projectId)) throw new ResourceNotFoundException("Project not found: " + projectId)`). Resolves regression introduced during access control consolidation where `DashboardService.getDashboard`, `ExcelService.generateTemplate`, and `ExcelService.validateImport` lost existence validation when called by Leaders or Testers on non-existent project IDs. `hasProjectAccess` intentionally omits the check to maintain zero overhead on already-resolved entity paths. Verified with 22 unit tests across `ProjectAccessGuardUnitTest`, `ExcelServiceUnitTest`, and `DashboardServiceUnitTest`.
+29. **JWT Secret Security Hardening (2026-08-19)**: Eliminated hardcoded leaked fallback secret from source code in `JwtConfig.java`, `docker-compose.yml`, and `.env.example`. Configured `application-prod.yml` with `jwt.secret: ${JWT_SECRET}` (no fallback) ensuring Spring Boot fails fast at startup if `JWT_SECRET` is unset in production. Added `@PostConstruct` safety check in `JwtTokenProvider` to emit a prominent log warning when the known default repository secret is detected. Preserved dev/test fallback in `application.yml` for local unit and integration testing workflows. Verified with `JwtTokenProviderUnitTest` and observed fail-fast property resolution error under prod profile.

@@ -132,6 +132,7 @@ TestHub/
 21. **Review Submission Timestamp**: `test_cases.submitted_at` is set when a Tester submits a case for review (`Draft` → `Review`) and is the sort key for the review queue (`submitted_at ASC`), NOT `created_at`. When a Leader rejects a case (`Review` → `Draft`), `submitted_at` is cleared to `null` so that subsequent re-submission receives a fresh FIFO queue position.
 22. **Add Test Case UI Guard**: A Test Case cannot be created via the UI when the project has zero Sections defined; the "Add Test Case" action in `TestCaseList.tsx` MUST be disabled with an explanatory tooltip (`"Create a Section first before adding Test Cases"`) in that state. Import and Export actions remain enabled.
 23. **Centralized Project Access Control (`ProjectAccessGuard`)**: All services verifying project-level access for users MUST use `ProjectAccessGuard` (`verifyProjectAccess` or `hasProjectAccess`), which enforces that Leaders have universal access while Testers must have explicit membership in `project_members`. Direct duplicate queries via `projectMemberRepository.existsByProjectIdAndUserId(...)` outside of `ProjectAccessGuard` and `ProjectService.assignMembers` are forbidden.
+24. **JWT Secret Deployment Configuration**: `JWT_SECRET` must be set via an environment variable for any real deployment; `application-prod.yml` enforces no fallback default and fails fast at startup if unset, while `JwtTokenProvider` emits a prominent log warning if the resolved secret matches the repository default.
 
 ---
 
