@@ -39,7 +39,7 @@ class ProjectControllerIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.url", () -> mysql.getJdbcUrl() + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
         registry.add("spring.datasource.username", mysql::getUsername);
         registry.add("spring.datasource.password", mysql::getPassword);
         registry.add("spring.flyway.enabled", () -> "true");
@@ -176,13 +176,13 @@ class ProjectControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(validRequest)))
                 .andExpect(status().isOk());
 
-        // Attempting to assign LEADER user -> 500 / 400 Bad Request
+        // Attempting to assign LEADER user -> 400 Bad Request
         AssignMembersRequest invalidRequest = new AssignMembersRequest(List.of(leader.getId()));
         mockMvc.perform(post("/api/projects/" + p1.getId() + "/members")
                         .header("Authorization", "Bearer " + leaderToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

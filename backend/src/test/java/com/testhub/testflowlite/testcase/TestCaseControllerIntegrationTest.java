@@ -45,7 +45,7 @@ class TestCaseControllerIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.url", () -> mysql.getJdbcUrl() + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
         registry.add("spring.datasource.username", mysql::getUsername);
         registry.add("spring.datasource.password", mysql::getPassword);
         registry.add("spring.flyway.enabled", () -> "true");
@@ -404,6 +404,8 @@ class TestCaseControllerIntegrationTest {
         mockMvc.perform(post("/api/cases/" + caseB.getId() + "/submit-review")
                         .header("Authorization", "Bearer " + testerBToken))
                 .andExpect(status().isOk());
+
+        Thread.sleep(1100);
 
         // Tester A submits case A for review SECOND (even though case A was created before case B)
         mockMvc.perform(post("/api/cases/" + caseA.getId() + "/submit-review")

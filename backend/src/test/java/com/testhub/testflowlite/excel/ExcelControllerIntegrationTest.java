@@ -55,7 +55,7 @@ class ExcelControllerIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.url", () -> mysql.getJdbcUrl() + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
         registry.add("spring.datasource.username", mysql::getUsername);
         registry.add("spring.datasource.password", mysql::getPassword);
         registry.add("spring.flyway.enabled", () -> "true");
@@ -199,7 +199,8 @@ class ExcelControllerIntegrationTest {
         assertEquals(1, cases.size());
         assertEquals("Update Profile Avatar", cases.get(0).getTitle());
         assertEquals(TestCaseStatus.DRAFT, cases.get(0).getStatus());
-        assertEquals("Settings", cases.get(0).getSection().getName());
+        Section sec = sectionRepository.findById(cases.get(0).getSection().getId()).orElseThrow();
+        assertEquals("Settings", sec.getName());
     }
 
     @Test
@@ -445,7 +446,8 @@ class ExcelControllerIntegrationTest {
 
             List<TestCase> cases = testCaseRepository.findAll();
             assertEquals(1, cases.size());
-            assertEquals("Uncategorized", cases.get(0).getSection().getName());
+            Section sec = sectionRepository.findById(cases.get(0).getSection().getId()).orElseThrow();
+            assertEquals("Uncategorized", sec.getName());
         }
     }
 

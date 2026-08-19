@@ -125,7 +125,7 @@ public class ExecutionService {
         TestRunCase runCase = verifyRunCaseAccess(runId, caseId, currentUsername);
 
         List<ExecutionHistory> histories = executionHistoryRepository
-                .findByRunCaseRunIdAndRunCaseCaseIdOrderByExecutedAtDesc(runId, caseId);
+                .findByRunCaseRunIdAndRunCaseCaseIdOrderByExecutedAtDescIdDesc(runId, caseId);
 
         return histories.stream().map(h -> {
             List<AttachmentDto> attachments = attachmentService.listByEntity("EXECUTION_HISTORY", h.getId());
